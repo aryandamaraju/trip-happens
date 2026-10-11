@@ -1,7 +1,8 @@
 from typing import Literal
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
+from locations import search_locations
 
 # Create the backend app
 app = FastAPI(
@@ -44,4 +45,25 @@ def preview_trip(trip: TripRequest):
         "message": "Trip details received. No itinerary generated yet.",
         "trip": trip,
         "daily_budget": daily_budget,
+    }
+
+# Search for a destination and return matching places
+@app.get("/locations/search")
+def find_locations(city: str = Query(min_length=2, max_length=100)):
+    # Remove extra spaces around the search
+    city = city.strip()
+
+    if len(city) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Enter at least two characters for the city.",
+        )
+
+    locations = search_locations(city)
+
+    return {
+        "query": city,
+        "count": len(locations),
+        "locations": locations,
+        "attribution": "Location data: GeoNames via OpenMeteo",
     }
