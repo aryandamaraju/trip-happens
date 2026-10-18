@@ -9,6 +9,7 @@ from routing import get_route
 from planner import gather_trip_data
 from llm import interpret_trip
 from itinerary import build_itinerary
+from schedule import add_schedule
 
 # Create the backend app
 app = FastAPI(
@@ -201,12 +202,16 @@ def create_itinerary(trip: OneDayTripRequest):
         pace=trip.pace,
     )
 
+    # Add suggested times after the stops have been selected.
+    scheduled_stops = add_schedule(itinerary["stops"])
+
     warnings = data["warnings"] + itinerary["warnings"]
 
     # Make the current limitations clear
     warnings.extend([
         "Stops are ordered by interest match, not travel efficiency.",
         "Visit times, opening hours, and travel times are not scheduled yet.",
+        "Opening hours are not checked. Suggested times may fall outside opening hours."
         "Activity costs are unknown, so the budget has not been verified.",
         "Popularity and variety preferences are saved but not applied yet.",
         "Weather is displayed but does not change activity selection yet.",
@@ -219,7 +224,9 @@ def create_itinerary(trip: OneDayTripRequest):
         "budget_verified": False,
         "target_stop_count": itinerary["target_stop_count"],
         "selected_stop_count": itinerary["selected_stop_count"],
-        "stops": itinerary["stops"],
+        "stops": scheduled_stops,
+        "schedule_basis": "Assumed durations, starting at 09:00 destination local time",
+        "opening_hours_verified": False,
         "weather": data["weather"],
         "warnings": warnings,
         "sources": {
