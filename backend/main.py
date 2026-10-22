@@ -10,12 +10,24 @@ from planner import gather_trip_data
 from llm import interpret_trip
 from itinerary import build_itinerary
 from schedule import add_schedule
+from fastapi.middleware.cors import CORSMiddleware
 
 # Create the backend app
 app = FastAPI(
     title="Trip Happens API",
     description="Personalized travel planning.",
     version="0.1.0",
+)
+
+# Allow our local React frontend to call the backend.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 # Define the trip details the user can send
