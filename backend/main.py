@@ -222,10 +222,10 @@ def create_itinerary(trip: OneDayTripRequest):
     # Make the current limitations clear
     warnings.extend([
         "Stops are ordered by interest match, not travel efficiency.",
-        "Visit times, opening hours, and travel times are not scheduled yet.",
-        "Opening hours are not checked. Suggested times may fall outside opening hours."
+        "Visit times are estimates. Actual travel times are not included in the schedule.",
+        "Opening hours are not checked. Suggested times may fall outside opening hours.",
         "Activity costs are unknown, so the budget has not been verified.",
-        "Popularity and variety preferences are saved but not applied yet.",
+        "Popularity and variety preferences are received but not applied yet.",
         "Weather is displayed but does not change activity selection yet.",
     ])
 
