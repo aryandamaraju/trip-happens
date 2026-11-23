@@ -1,16 +1,17 @@
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from locations import search_locations
 from attractions import search_attractions
 from weather import get_weather
 from routing import get_route
 from planner import gather_trip_data
 from llm import interpret_trip
-from itinerary import build_itinerary
+from itinerary import build_itinerary, order_stops
 from schedule import add_schedule
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import date
 
 # Create the backend app
 app = FastAPI(
@@ -33,14 +34,44 @@ app.add_middleware(
 # Define the trip details the user can send
 class TripRequest(BaseModel):
     destination: str = Field(min_length=2, max_length=100)
-    days: int = Field(ge=1, le=30) # Between 1 and 30 days
-    budget: float = Field(gt=0) # Total budget in USD, must be positive
-    interests: list[str] # For example: ["museums", "nature", "food"]
+    days: int = Field(ge=1, le=30)
+    # Optional until the user selects a date in the frontend.
+    trip_date: date | None = None
 
-    # Limit each preference to these choices and set a default
+    # Reject zero, negative values, infinity, and NaN.
+    budget: float = Field(gt=0, allow_inf_nan=False)
+
+    interests: list[str] = Field(min_length=1)
+
     pace: Literal["relaxed", "balanced", "packed"] = "balanced"
     popularity: Literal["popular", "mixed", "hidden_gems"] = "mixed"
     variety: Literal["low", "medium", "high"] = "medium"
+
+    @field_validator("destination", mode="before")
+    @classmethod
+    def clean_destination(cls, value):
+        # Remove spaces before checking the destination's length.
+        if isinstance(value, str):
+            return value.strip()
+
+        return value
+
+    @field_validator("interests")
+    @classmethod
+    def clean_interests(cls, interests):
+        cleaned_interests = []
+
+        for interest in interests:
+            interest = interest.strip().lower()
+
+            # Skip blank entries and repeated interests.
+            if interest and interest not in cleaned_interests:
+                cleaned_interests.append(interest)
+
+        if not cleaned_interests:
+            raise ValueError("Enter at least one interest.")
+
+        return cleaned_interests
 
 # Use the existing trip fields and add the selected location
 class TripResearchRequest(TripRequest):
@@ -167,6 +198,7 @@ def research_trip(trip: TripResearchRequest):
         longitude=trip.longitude,
         days=trip.days,
         radius=trip.radius,
+        trip_date=trip.trip_date,
     )
 
     return {
@@ -206,27 +238,109 @@ def create_itinerary(trip: OneDayTripRequest):
         longitude=trip.longitude,
         days=trip.days,
         radius=trip.radius,
+        trip_date=trip.trip_date,
     )
+
+    # Apply weather preferences only to an explicitly selected trip date.
+    prefer_museums = False
+
+    if trip.trip_date is not None and data["weather"] is not None:
+        selected_date = trip.trip_date.isoformat()
+
+        for day in data["weather"]["forecast"]:
+            if day["date"] != selected_date:
+                continue
+
+            precipitation_chance = day.get(
+                "precipitation_chance_max_percent"
+            )
+
+            # Missing or invalid values should not trigger the rule.
+            if (
+                not isinstance(precipitation_chance, bool)
+                and isinstance(precipitation_chance, (int, float))
+                and 60 <= precipitation_chance <= 100
+            ):
+                prefer_museums = True
+
+            break
 
     itinerary = build_itinerary(
         attractions=data["attractions"],
         interests=trip.interests,
         pace=trip.pace,
+        variety=trip.variety,
+        popularity=trip.popularity,
+        prefer_museums=prefer_museums,
     )
 
-    # Add suggested times after the stops have been selected.
-    scheduled_stops = add_schedule(itinerary["stops"])
+    # Add visit times and estimated travel between selected stops.
+    # Start near the selected city coordinates.
+    ordered_stops = order_stops(
+        stops=itinerary["stops"],
+        start_lat=trip.latitude,
+        start_lon=trip.longitude,
+    )
 
-    warnings = data["warnings"] + itinerary["warnings"]
+    # Calculate travel and visit times using the new stop order.
+    schedule = add_schedule(ordered_stops)
+    scheduled_stops = schedule["stops"]
+
+    # Summarize the journeys between attractions.
+    estimated_driving_minutes = 0
+    estimated_distance_km = 0
+    estimated_journeys = 0
+    fallback_journeys = 0
+    fallback_buffer_minutes = 0
+
+    for stop in scheduled_stops:
+        if stop["position"] == 1:
+            continue
+
+        route = stop["travel_before"]
+
+        if route is not None:
+            estimated_driving_minutes += route["scheduled_minutes"]
+            estimated_distance_km += route["distance_m"] / 1000
+            estimated_journeys += 1
+        else:
+            fallback_journeys += 1
+            fallback_buffer_minutes += (
+                stop["schedule"]["assumed_buffer_before_minutes"]
+            )
+
+    travel_summary = {
+        "mode": "driving",
+        "estimated_journeys": estimated_journeys,
+        "fallback_journeys": fallback_journeys,
+        "estimated_driving_minutes": estimated_driving_minutes,
+        "estimated_distance_km": round(estimated_distance_km, 2),
+        "fallback_buffer_minutes": fallback_buffer_minutes,
+    }
+
+    warnings = (
+        data["warnings"]
+        + itinerary["warnings"]
+        + schedule["warnings"]
+    )
 
     # Make the current limitations clear
     warnings.extend([
-        "Stops are ordered by interest match, not travel efficiency.",
-        "Visit times are estimates. Actual travel times are not included in the schedule.",
+        "Stops use a nearby-first order based on straight-line distance, "
+        "starting near the selected city coordinates. "
+        "This is not a guaranteed fastest driving route.",
+        "Travel between stops uses estimated driving times where available. "
+        "These are not live traffic estimates and do not include parking "
+        "or walking to entrances.",
+        "Travel to the first stop and from the last stop is not included.",
         "Opening hours are not checked. Suggested times may fall outside opening hours.",
         "Activity costs are unknown, so the budget has not been verified.",
-        "Popularity and variety preferences are received but not applied yet.",
-        "Weather is displayed but does not change activity selection yet.",
+        "Popularity uses available OpenTripMap ratings, not visitor counts. "
+        "Hidden gems means lower-rated places, not confirmed undiscovered places.",
+        "Variety uses attraction categories. Different settings may return the same stops when choices are limited.",
+        "Weather can favor museums when the selected date has at least "
+        "a 60% precipitation chance. This is a simple planning rule, "
+        "not a guarantee of suitable conditions.",
     ])
 
     return {
@@ -237,7 +351,12 @@ def create_itinerary(trip: OneDayTripRequest):
         "target_stop_count": itinerary["target_stop_count"],
         "selected_stop_count": itinerary["selected_stop_count"],
         "stops": scheduled_stops,
-        "schedule_basis": "Assumed durations, starting at 09:00 destination local time",
+        "travel_summary": travel_summary,
+        "schedule_basis": (
+            "Starts at 09:00 destination local time. "
+            "Uses assumed visit lengths and estimated driving times, "
+            "with 15-minute fallback buffers when routing is unavailable."
+        ),
         "opening_hours_verified": False,
         "weather": data["weather"],
         "warnings": warnings,
@@ -245,6 +364,14 @@ def create_itinerary(trip: OneDayTripRequest):
             "attractions": "OpenTripMap",
             "weather": (
                 "Open-Meteo" if data["weather"] is not None else None
+            ),
+            "routing": (
+                "OSRM / OpenStreetMap contributors"
+                if any(
+                    stop["travel_before"] is not None
+                    for stop in scheduled_stops
+                )
+                else None
             ),
         },
     }

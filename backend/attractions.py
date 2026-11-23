@@ -9,6 +9,18 @@ from fastapi import HTTPException
 # Load the .env file located beside this Python file
 load_dotenv(Path(__file__).parent / ".env")
 
+# Convert the provider's rating into a simple popularity score.
+def get_popularity_score(rate):
+    ratings = {
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "1h": 1,
+        "2h": 2,
+        "3h": 3,
+    }
+
+    return ratings.get(str(rate).strip().lower())
 
 # Find attractions around a selected location
 def search_attractions(latitude: float, longitude: float, radius: int):
@@ -93,6 +105,14 @@ def search_attractions(latitude: float, longitude: float, radius: int):
                 "longitude": place["point"]["lon"],
                 "distance_from_center_m": place.get("dist"),
                 "source": "OpenTripMap",
+
+                # Keep the original value for reference.
+                "provider_rating": place.get("rate"),
+
+                # Use recognized ratings for popularity preferences.
+                "popularity_score": get_popularity_score(
+                    place.get("rate")
+                ),
             })
 
     except (KeyError, TypeError, AttributeError):

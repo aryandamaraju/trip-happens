@@ -7,6 +7,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
+from datetime import date
 
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -15,6 +16,7 @@ load_dotenv(Path(__file__).parent / ".env")
 class ExtractedTrip(BaseModel):
     destination: str | None = Field(default=None, min_length=2, max_length=100)
     days: int | None = Field(default=None, ge=1, le=30)
+    trip_date: date | None = None
     budget: float | None = Field(default=None, gt=0, allow_inf_nan=False)
     interests: list[str] = Field(default_factory=list)
     pace: Literal["relaxed", "balanced", "packed"] | None = None
@@ -31,6 +33,7 @@ Do not generate an itinerary or recommend attractions.
 Return one JSON object with these fields:
 - destination: the destination stated by the user, or null
 - days: trip length as a whole number, or null
+- trip_date: an explicitly stated trip start date in YYYY-MM-DD format, or null
 - budget: total food and activity budget for one traveler in USD, or null
 - interests: a list of short interest labels, or [] if not stated
 - pace: relaxed, balanced, packed, or null
@@ -43,6 +46,12 @@ Do not invent a destination, budget, trip length, or preferences.
 If something is missing, ambiguous, or contradictory, use null.
 Do not convert currencies or guess a food/activity share of a larger budget.
 If the budget's currency or scope is unclear, use null for budget.
+For trip_date, require a clear day, month, and year.
+For example, "November 25, 2026" becomes "2026-11-25".
+Do not guess a missing year.
+For relative dates such as "tomorrow" or "next Friday", return null.
+For ambiguous numeric dates such as "03/04/2026", return null.
+If the date is impossible or contradictory, return null.
 """
 
 

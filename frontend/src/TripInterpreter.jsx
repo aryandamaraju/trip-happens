@@ -63,6 +63,10 @@ function TripInterpreter({ onApply, onBusyChange, disabled }) {
       <p>
         Use this optional helper, or fill in the trip form yourself.
       </p>
+      <p>
+        To include a date, write the month, day, and year,
+        such as November 25, 2026. Otherwise, choose it in the form.
+      </p>
 
       <form onSubmit={interpretMessage}>
         <label>
@@ -104,6 +108,10 @@ function TripInterpreter({ onApply, onBusyChange, disabled }) {
             <strong>Days:</strong> {result.trip.days ?? "Not provided"}
           </p>
           <p>
+            <strong>Trip date:</strong>{" "}
+            {result.trip.trip_date ?? "Not provided, choose it in the form"}
+          </p>
+          <p>
             <strong>Budget:</strong>{" "}
             {result.trip.budget == null
               ? "Not provided"
@@ -132,8 +140,8 @@ function TripInterpreter({ onApply, onBusyChange, disabled }) {
           )}
 
           <p>
-            This demo plans one day. Popularity and variety are saved
-            but do not affect stop selection yet.
+            This demo plans one day. Variety and popularity affect stop selection.
+            Popularity uses available attraction ratings.
           </p>
 
           {result.trip.days > 1 ? (

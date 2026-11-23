@@ -119,3 +119,15 @@ textarea {
   border-radius: 5px;
   resize: vertical;
 }
+
+.travel-details {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background-color: #f3f6f8;
+  border-left: 3px solid #627d98;
+  border-radius: 4px;
+}
+
+.travel-details p {
+  margin: 4px 0;
+}

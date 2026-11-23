@@ -17,6 +17,7 @@ function App() {
   const [suggestedDestination, setSuggestedDestination] = useState("");
   const [popularity, setPopularity] = useState("mixed");
   const [variety, setVariety] = useState("medium");
+  const [tripDate, setTripDate] = useState("");
 
   // Remove the old result when the user changes trip details.
   function clearResult() {
@@ -31,6 +32,8 @@ function App() {
     setPace(trip.pace ?? "");
     setPopularity(trip.popularity ?? "mixed");
     setVariety(trip.variety ?? "medium");
+    // Use the extracted date, or leave the date picker blank.
+    setTripDate(trip.trip_date ?? "");
 
     // The user must confirm a city from our location search.
     setSuggestedDestination(trip.destination ?? "");
@@ -74,6 +77,7 @@ function App() {
         selectedCity.country,
       ].filter(Boolean).join(", "),
       days: 1,
+      trip_date: tripDate || null,
       budget: budgetNumber,
       interests: interestList,
       pace: pace,
@@ -160,6 +164,25 @@ function App() {
               clearResult();
             }}
           />
+          <label htmlFor="trip-date">Trip date (optional)</label>
+          <input
+            id="trip-date"
+            type="date"
+            value={tripDate}
+            onChange={(event) => {
+              setTripDate(event.target.value);
+              clearResult();
+            }}
+          />
+
+          <p>
+            Choose the date at your destination. Leave blank to see weather
+            starting today. Forecasts for distant dates may be unavailable.
+          </p>
+          <p>
+            Review the trip date after applying a written request.
+            You can choose or change it here.
+          </p>
 
           <label>
             Food and activity budget (USD)
@@ -214,6 +237,46 @@ function App() {
               <option value="packed">Packed — up to 5 stops</option>
             </select>
           </label>
+
+          <label>
+            Activity variety
+            <select
+              value={variety}
+              onChange={(event) => {
+                setVariety(event.target.value);
+                clearResult();
+              }}
+            >
+              <option value="low">Low, allow similar activities</option>
+              <option value="medium">Medium, cover my interests</option>
+              <option value="high">High, prefer different activity types</option>
+            </select>
+          </label>
+
+          <p className="hint">
+            Variety depends on the places available. High variety prefers
+            different activity types when interest scores are equal.
+          </p>
+
+          <label htmlFor="popularity">Place popularity</label>
+          
+          <select
+            id="popularity"
+            value={popularity}
+            onChange={(event) => {
+              setPopularity(event.target.value);
+              clearResult();
+            }}
+          >
+            <option value="popular">Prefer popular places</option>
+            <option value="mixed">No popularity preference</option>
+            <option value="hidden_gems">Prefer hidden gems</option>
+          </select>
+
+          <p>
+            Uses available attraction ratings. Hidden gems favors lower ratings,
+            which does not necessarily mean fewer visitors.
+          </p>
 
           <button type="submit">
             {loading ? "Generating..." : "Generate itinerary"}

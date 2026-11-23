@@ -1,9 +1,62 @@
 import httpx
 from fastapi import HTTPException
+import time
+from threading import Lock
 
+# Remember successful routes for 30 minutes.
+route_cache = {}
+cache_seconds = 30 * 60
+
+# Allow only one route request at a time.
+route_lock = Lock()
+last_request_time = 0.0
+
+
+def get_route(
+    start_lat: float,
+    start_lon: float,
+    end_lat: float,
+    end_lon: float,
+):
+    global last_request_time
+
+    key = (start_lat, start_lon, end_lat, end_lon)
+
+    with route_lock:
+        now = time.monotonic()
+        cached = route_cache.get(key)
+
+        if cached and now - cached["saved_at"] < cache_seconds:
+            return cached["route"].copy()
+
+        # Leave at least one second between requests.
+        wait_seconds = 1.0 - (now - last_request_time)
+
+        if wait_seconds > 0:
+            time.sleep(wait_seconds)
+
+        last_request_time = time.monotonic()
+
+        route = request_route(
+            start_lat,
+            start_lon,
+            end_lat,
+            end_lon,
+        )
+
+        # Keep the cache small for our local demo.
+        if len(route_cache) >= 200:
+            route_cache.clear()
+
+        route_cache[key] = {
+            "saved_at": time.monotonic(),
+            "route": route.copy(),
+        }
+
+        return route
 
 # Get a driving route between two locations
-def get_route(
+def request_route(
     start_lat: float,
     start_lon: float,
     end_lat: float,
