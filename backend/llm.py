@@ -18,6 +18,11 @@ class ExtractedTrip(BaseModel):
     days: int | None = Field(default=None, ge=1, le=30)
     trip_date: date | None = None
     budget: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    food_budget: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+    )
     interests: list[str] = Field(default_factory=list)
     pace: Literal["relaxed", "balanced", "packed"] | None = None
     popularity: Literal["popular", "mixed", "hidden_gems"] | None = None
@@ -35,6 +40,7 @@ Return one JSON object with these fields:
 - days: trip length as a whole number, or null
 - trip_date: an explicitly stated trip start date in YYYY-MM-DD format, or null
 - budget: total food and activity budget for one traveler in USD, or null
+- food_budget: an explicitly stated food allowance within the total budget in USD, or null
 - interests: a list of short interest labels, or [] if not stated
 - pace: relaxed, balanced, packed, or null
 - popularity: popular, mixed, hidden_gems, or null
@@ -52,6 +58,12 @@ Do not guess a missing year.
 For relative dates such as "tomorrow" or "next Friday", return null.
 For ambiguous numeric dates such as "03/04/2026", return null.
 If the date is impossible or contradictory, return null.
+The food allowance is part of the total budget, not an additional amount.
+Do not invent a food allowance or calculate one using a percentage.
+If the user gives only a food allowance, leave the total budget null.
+If the food allowance exceeds a stated total budget, return null for food_budget.
+Example: "100 USD total for food and activities, including 30 USD for food"
+means budget is 100 and food_budget is 30.
 """
 
 

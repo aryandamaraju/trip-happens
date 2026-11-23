@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from locations import search_locations
 from attractions import search_attractions
 from weather import get_weather
@@ -41,6 +41,13 @@ class TripRequest(BaseModel):
     # Reject zero, negative values, infinity, and NaN.
     budget: float = Field(gt=0, allow_inf_nan=False)
 
+    # Part of the total budget reserved for food.
+    food_budget: float = Field(
+        default=0,
+        ge=0,
+        allow_inf_nan=False,
+    )
+
     interests: list[str] = Field(min_length=1)
 
     pace: Literal["relaxed", "balanced", "packed"] = "balanced"
@@ -72,6 +79,15 @@ class TripRequest(BaseModel):
             raise ValueError("Enter at least one interest.")
 
         return cleaned_interests
+
+    @model_validator(mode="after")
+    def check_food_budget(self):
+        if self.food_budget > self.budget:
+            raise ValueError(
+                "The food allowance cannot exceed the total budget."
+            )
+
+        return self
 
 # Use the existing trip fields and add the selected location
 class TripResearchRequest(TripRequest):
@@ -348,6 +364,15 @@ def create_itinerary(trip: OneDayTripRequest):
         "trip": trip,
         "budget_usd": trip.budget,
         "budget_verified": False,
+        "budget_breakdown": {
+            "total_usd": trip.budget,
+            "food_allowance_usd": trip.food_budget,
+            "activity_allowance_usd": round(
+                trip.budget - trip.food_budget,
+                2,
+            ),
+            "activity_costs_known": False,
+        },
         "target_stop_count": itinerary["target_stop_count"],
         "selected_stop_count": itinerary["selected_stop_count"],
         "stops": scheduled_stops,

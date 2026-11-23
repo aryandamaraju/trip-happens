@@ -118,6 +118,12 @@ function TripInterpreter({ onApply, onBusyChange, disabled }) {
               : `$${result.trip.budget} USD`}
           </p>
           <p>
+            <strong>Food allowance:</strong>{" "}
+            {result.trip.food_budget == null
+              ? "Not provided"
+              : `$${result.trip.food_budget} USD, included in the total`}
+          </p>
+          <p>
             <strong>Interests:</strong>{" "}
             {result.trip.interests.join(", ") || "Not provided"}
           </p>

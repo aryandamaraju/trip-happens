@@ -12,6 +12,18 @@ function ItineraryResult({ itinerary }) {
       "Times are in the destination's local time.",
       "",
     ];
+    
+    if (itinerary.budget_breakdown) {
+      const allocation = itinerary.budget_breakdown;
+
+      lines.push(
+        "BUDGET ALLOCATION",
+        `Reserved for food: $${allocation.food_allowance_usd.toFixed(2)}`,
+        `Available for activities: $${allocation.activity_allowance_usd.toFixed(2)}`,
+        "These are allowances, not verified activity costs.",
+        ""
+      );
+    }
 
     // Add each attraction and its schedule.
     for (const stop of itinerary.stops) {
@@ -133,6 +145,31 @@ function ItineraryResult({ itinerary }) {
         {itinerary.budget_usd}
       </p>
       <p>Budget has not been verified against activity costs.</p>
+      {itinerary.budget_breakdown && (
+        <div className="budget-details">
+          <h3>Your budget allocation</h3>
+
+          <p>
+            Total budget: $
+            {itinerary.budget_breakdown.total_usd.toFixed(2)}
+          </p>
+
+          <p>
+            Reserved for food: $
+            {itinerary.budget_breakdown.food_allowance_usd.toFixed(2)}
+          </p>
+
+          <p>
+            Available for activities: $
+            {itinerary.budget_breakdown.activity_allowance_usd.toFixed(2)}
+          </p>
+
+          <p>
+            These are spending allowances. Attraction prices are unknown,
+            so this does not confirm that the itinerary fits your budget.
+          </p>
+        </div>
+      )}
       <p>Suggested times are in the destination's local time.</p>
 
       {/* Summarize travel between the selected stops. */}

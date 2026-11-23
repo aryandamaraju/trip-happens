@@ -7,6 +7,7 @@ import TripInterpreter from "./TripInterpreter";
 function App() {
   const [selectedCity, setSelectedCity] = useState(null);
   const [budget, setBudget] = useState("");
+  const [foodBudget, setFoodBudget] = useState("");
   const [interests, setInterests] = useState("");
   const [pace, setPace] = useState("balanced");
   const [itinerary, setItinerary] = useState(null);
@@ -28,6 +29,10 @@ function App() {
   function applyTripDetails(trip) {
     // Replace old values so missing details do not carry over.
     setBudget(trip.budget == null ? "" : String(trip.budget));
+    // Fill in an explicitly stated food allowance.
+    setFoodBudget(
+      trip.food_budget == null ? "" : String(trip.food_budget)
+    );
     setInterests(trip.interests.join(", "));
     setPace(trip.pace ?? "");
     setPopularity(trip.popularity ?? "mixed");
@@ -69,6 +74,19 @@ function App() {
       return;
     }
 
+    // A blank food allowance means no money is reserved for food.
+    const foodAmount = foodBudget === "" ? 0 : Number(foodBudget);
+
+    if (!Number.isFinite(foodAmount) || foodAmount < 0) {
+      setError("Enter a food allowance of zero or more.");
+      return;
+    }
+
+    if (foodAmount > Number(budget)) {
+      setError("The food allowance cannot exceed the total budget.");
+      return;
+    }
+
     // Use the selected city's coordinates for the attraction search.
     const trip = {
       destination: [
@@ -79,6 +97,7 @@ function App() {
       days: 1,
       trip_date: tripDate || null,
       budget: budgetNumber,
+      food_budget: foodAmount,
       interests: interestList,
       pace: pace,
       popularity: popularity,
@@ -199,6 +218,26 @@ function App() {
               required
             />
           </label>
+
+          <label htmlFor="food-budget">Food allowance (USD)</label>
+          <input
+            id="food-budget"
+            type="number"
+            min="0"
+            step="0.01"
+            value={foodBudget}
+            onChange={(event) => {
+              setFoodBudget(event.target.value);
+              clearResult();
+            }}
+            placeholder="Example: 30"
+          />
+
+          <p>
+            This comes out of your total budget. Leave blank to reserve $0.
+            The remaining amount is your activity allowance.
+          </p>
+
           <p className="hint">
             Total for one traveler. Excludes hotels and flights.
           </p>
