@@ -19,6 +19,7 @@ function App() {
   const [popularity, setPopularity] = useState("mixed");
   const [variety, setVariety] = useState("medium");
   const [tripDate, setTripDate] = useState("");
+  const [days, setDays] = useState("1");
 
   // Remove the old result when the user changes trip details.
   function clearResult() {
@@ -44,6 +45,8 @@ function App() {
     setSuggestedDestination(trip.destination ?? "");
     setSelectedCity(null);
     setCitySearchKey((previousKey) => previousKey + 1);
+    // Leave missing trip lengths blank for the user to complete.
+    setDays(trip.days == null ? "" : String(trip.days));
 
     clearResult();
   }
@@ -51,6 +54,13 @@ function App() {
   async function handleSubmit(event) {
     event.preventDefault();
     clearResult();
+
+    const tripDays = Number(days);
+
+    if (!Number.isInteger(tripDays) || tripDays < 1 || tripDays > 7) {
+      setError("Enter a whole number of days between 1 and 7.");
+      return;
+    }
 
     if (!selectedCity) {
       setError("Search for a city and select a result first.");
@@ -94,7 +104,7 @@ function App() {
         selectedCity.region,
         selectedCity.country,
       ].filter(Boolean).join(", "),
-      days: 1,
+      days: tripDays,
       trip_date: tripDate || null,
       budget: budgetNumber,
       food_budget: foodAmount,
@@ -156,7 +166,7 @@ function App() {
   return (
     <main className="container">
       <h1>Trip Happens</h1>
-      <p>Plan a one-day trip based on your interests and pace.</p>
+      <p>Plan 1 to 7 days in one destination based on your interests and pace.</p>
 
       <TripInterpreter
         onApply={applyTripDetails}
@@ -183,6 +193,25 @@ function App() {
               clearResult();
             }}
           />
+          <label htmlFor="trip-days">Number of days</label>
+          <input
+            id="trip-days"
+            type="number"
+            min="1"
+            max="7"
+            step="1"
+            value={days}
+            onChange={(event) => {
+              setDays(event.target.value);
+              clearResult();
+            }}
+            required
+          />
+
+          <p>
+            Plan 1 to 7 days in one destination. Your total budget and food
+            allowance cover the entire trip.
+          </p>
           <label htmlFor="trip-date">Trip date (optional)</label>
           <input
             id="trip-date"

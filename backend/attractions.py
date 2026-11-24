@@ -23,7 +23,14 @@ def get_popularity_score(rate):
     return ratings.get(str(rate).strip().lower())
 
 # Find attractions around a selected location
-def search_attractions(latitude: float, longitude: float, radius: int):
+def search_attractions(
+    latitude: float,
+    longitude: float,
+    radius: int,
+    kinds: str = "interesting_places",
+    limit: int = 100,
+    include_search_info: bool = False,
+):
     api_key = os.getenv("OPENTRIPMAP_API_KEY")
 
     if not api_key:
@@ -39,9 +46,9 @@ def search_attractions(latitude: float, longitude: float, radius: int):
         "lat": latitude,
         "lon": longitude,
         "radius": radius,
-        "kinds": "interesting_places",
+        "kinds": kinds,
         "format": "json",
-        "limit": 100,
+        "limit": limit,
     }
 
     try:
@@ -121,4 +128,12 @@ def search_attractions(latitude: float, longitude: float, radius: int):
             detail="OpenTripMap returned incomplete or invalid place data.",
         )
 
+    # The planner also needs to know whether results may be truncated.
+    if include_search_info:
+        return {
+            "attractions": attractions,
+            "limit_reached": len(places) >= limit,
+        }
+
+    # Keep the existing list response for the attraction search endpoint.
     return attractions

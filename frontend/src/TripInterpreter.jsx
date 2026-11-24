@@ -146,14 +146,16 @@ function TripInterpreter({ onApply, onBusyChange, disabled }) {
           )}
 
           <p>
-            This demo plans one day. Variety and popularity affect stop selection.
-            Popularity uses available attraction ratings.
+            This planner supports 1 to 7 days in one destination.
+            Budget amounts cover the whole trip.
+            Review all details before applying them.
           </p>
 
-          {result.trip.days > 1 ? (
+          {result.trip.days != null &&
+          (result.trip.days < 1 || result.trip.days > 7) ? (
             <p>
-              Multi-day planning is not supported yet. Edit your request
-              to describe a one-day trip.
+              This planner supports 1 to 7 days.
+              Edit your request to use a supported trip length.
             </p>
           ) : (
             <button
@@ -161,7 +163,7 @@ function TripInterpreter({ onApply, onBusyChange, disabled }) {
               disabled={loading || disabled}
               onClick={() => onApply(result.trip)}
             >
-              Use these details for a one-day trip
+              Use these trip details
             </button>
           )}
         </div>

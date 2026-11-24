@@ -8,7 +8,7 @@ from weather import get_weather
 from routing import get_route
 from planner import gather_trip_data
 from llm import interpret_trip
-from itinerary import build_itinerary, order_stops
+from itinerary import build_daily_itineraries, order_stops
 from schedule import add_schedule
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
@@ -99,9 +99,21 @@ class TripResearchRequest(TripRequest):
 class TripMessage(BaseModel):
     message: str = Field(min_length=10, max_length=2000)
 
-# Our first itinerary demo supports one day only
-class OneDayTripRequest(TripResearchRequest):
-    days: Literal[1] = 1
+# Generate trips lasting between one and seven days.
+class ItineraryRequest(TripResearchRequest):
+    days: int = Field(default=1, ge=1, le=7)
+
+    @model_validator(mode="after")
+    def check_trip_end_date(self):
+        if self.trip_date is not None:
+            available_days = (date.max - self.trip_date).days
+
+            if self.days - 1 > available_days:
+                raise ValueError(
+                    "The trip end date is outside the supported range."
+                )
+
+        return self
 
 # Show a welcome message at the main URL
 @app.get("/")
@@ -215,6 +227,7 @@ def research_trip(trip: TripResearchRequest):
         days=trip.days,
         radius=trip.radius,
         trip_date=trip.trip_date,
+        interests=trip.interests,
     )
 
     return {
@@ -246,117 +259,132 @@ def interpret_request(request: TripMessage):
 
     return interpret_trip(message)
 
-# Gather real places and select a basic one day draft
-@app.post("/trips/itinerary")
-def create_itinerary(trip: OneDayTripRequest):
-    data = gather_trip_data(
-        latitude=trip.latitude,
-        longitude=trip.longitude,
-        days=trip.days,
-        radius=trip.radius,
-        trip_date=trip.trip_date,
-    )
+# Summarize travel within one day or across the whole trip.
+def summarize_travel(stops: list):
+    summary = {
+        "mode": "driving",
+        "estimated_journeys": 0,
+        "fallback_journeys": 0,
+        "estimated_driving_minutes": 0,
+        "estimated_distance_km": 0,
+        "fallback_buffer_minutes": 0,
+    }
 
-    # Apply weather preferences only to an explicitly selected trip date.
-    prefer_museums = False
+    distance_m = 0
 
-    if trip.trip_date is not None and data["weather"] is not None:
-        selected_date = trip.trip_date.isoformat()
-
-        for day in data["weather"]["forecast"]:
-            if day["date"] != selected_date:
-                continue
-
-            precipitation_chance = day.get(
-                "precipitation_chance_max_percent"
-            )
-
-            # Missing or invalid values should not trigger the rule.
-            if (
-                not isinstance(precipitation_chance, bool)
-                and isinstance(precipitation_chance, (int, float))
-                and 60 <= precipitation_chance <= 100
-            ):
-                prefer_museums = True
-
-            break
-
-    itinerary = build_itinerary(
-        attractions=data["attractions"],
-        interests=trip.interests,
-        pace=trip.pace,
-        variety=trip.variety,
-        popularity=trip.popularity,
-        prefer_museums=prefer_museums,
-    )
-
-    # Add visit times and estimated travel between selected stops.
-    # Start near the selected city coordinates.
-    ordered_stops = order_stops(
-        stops=itinerary["stops"],
-        start_lat=trip.latitude,
-        start_lon=trip.longitude,
-    )
-
-    # Calculate travel and visit times using the new stop order.
-    schedule = add_schedule(ordered_stops)
-    scheduled_stops = schedule["stops"]
-
-    # Summarize the journeys between attractions.
-    estimated_driving_minutes = 0
-    estimated_distance_km = 0
-    estimated_journeys = 0
-    fallback_journeys = 0
-    fallback_buffer_minutes = 0
-
-    for stop in scheduled_stops:
+    for stop in stops:
+        # Each day's first stop has no incoming journey.
         if stop["position"] == 1:
             continue
 
         route = stop["travel_before"]
 
         if route is not None:
-            estimated_driving_minutes += route["scheduled_minutes"]
-            estimated_distance_km += route["distance_m"] / 1000
-            estimated_journeys += 1
+            summary["estimated_journeys"] += 1
+            summary["estimated_driving_minutes"] += (
+                route["scheduled_minutes"]
+            )
+            distance_m += route["distance_m"]
+
         else:
-            fallback_journeys += 1
-            fallback_buffer_minutes += (
+            summary["fallback_journeys"] += 1
+            summary["fallback_buffer_minutes"] += (
                 stop["schedule"]["assumed_buffer_before_minutes"]
             )
 
-    travel_summary = {
-        "mode": "driving",
-        "estimated_journeys": estimated_journeys,
-        "fallback_journeys": fallback_journeys,
-        "estimated_driving_minutes": estimated_driving_minutes,
-        "estimated_distance_km": round(estimated_distance_km, 2),
-        "fallback_buffer_minutes": fallback_buffer_minutes,
-    }
+    summary["estimated_distance_km"] = round(distance_m / 1000, 2)
 
-    warnings = (
-        data["warnings"]
-        + itinerary["warnings"]
-        + schedule["warnings"]
+    return summary
+
+# Gather real places and select a basic one day draft
+# Build separate daily plans for one destination.
+@app.post("/trips/itinerary")
+def create_itinerary(trip: ItineraryRequest):
+    # Fetch attractions and weather once for the whole trip.
+    data = gather_trip_data(
+        latitude=trip.latitude,
+        longitude=trip.longitude,
+        days=trip.days,
+        radius=trip.radius,
+        trip_date=trip.trip_date,
+        interests=trip.interests,
     )
 
-    # Make the current limitations clear
+    daily_plans = build_daily_itineraries(
+        attractions=data["attractions"],
+        interests=trip.interests,
+        pace=trip.pace,
+        days=trip.days,
+        variety=trip.variety,
+        popularity=trip.popularity,
+        trip_date=trip.trip_date,
+        weather=data["weather"],
+    )
+
+    all_stops = []
+    warnings = data["warnings"].copy()
+    total_target_stops = 0
+
+    for daily_plan in daily_plans:
+        # Order each day's selected places separately.
+        ordered_stops = order_stops(
+            stops=daily_plan["stops"],
+            start_lat=trip.latitude,
+            start_lon=trip.longitude,
+        )
+
+        # Each call starts a fresh schedule at 09:00.
+        schedule = add_schedule(ordered_stops)
+        daily_plan["stops"] = schedule["stops"]
+        daily_plan["warnings"].extend(schedule["warnings"])
+
+        daily_plan["travel_summary"] = summarize_travel(
+            daily_plan["stops"]
+        )
+
+        # Keep the day number on each stop too.
+        for stop in daily_plan["stops"]:
+            stop["day"] = daily_plan["day"]
+
+        all_stops.extend(daily_plan["stops"])
+        total_target_stops += daily_plan["target_stop_count"]
+
+        # Include the day number in the combined warning list.
+        for warning in daily_plan["warnings"]:
+            warnings.append(
+                f"Day {daily_plan['day']}: {warning}"
+            )
+
     warnings.extend([
-        "Stops use a nearby-first order based on straight-line distance, "
-        "starting near the selected city coordinates. "
+        "Each day starts at 09:00 destination local time. "
+        "Visit lengths are assumptions.",
+
+        "Stops use a nearby-first order based on straight-line distance. "
         "This is not a guaranteed fastest driving route.",
-        "Travel between stops uses estimated driving times where available. "
-        "These are not live traffic estimates and do not include parking "
-        "or walking to entrances.",
-        "Travel to the first stop and from the last stop is not included.",
-        "Opening hours are not checked. Suggested times may fall outside opening hours.",
-        "Activity costs are unknown, so the budget has not been verified.",
+
+        "Driving estimates exclude live traffic, parking, and walking "
+        "to entrances. Unavailable routes use assumed buffers.",
+
+        "Travel to each day's first stop, from each day's last stop, "
+        "and between days is not included.",
+
+        "Opening hours are not checked. Suggested times may fall "
+        "outside opening hours.",
+
+        "The total budget and food allowance cover the whole trip. "
+        "Activity costs are unknown, so affordability is not verified.",
+
         "Popularity uses available OpenTripMap ratings, not visitor counts. "
         "Hidden gems means lower-rated places, not confirmed undiscovered places.",
-        "Variety uses attraction categories. Different settings may return the same stops when choices are limited.",
-        "Weather can favor museums when the selected date has at least "
-        "a 60% precipitation chance. This is a simple planning rule, "
-        "not a guarantee of suitable conditions.",
+
+        "Variety uses attraction categories. Settings may produce "
+        "the same stops when choices are limited.",
+
+        "Weather can favor museums when a selected date has at least "
+        "a 60% precipitation chance. Indoor access is not verified.",
+
+        "Earlier days get first choice of attractions. Later days "
+        "may have fewer suitable places.",
     ])
 
     return {
@@ -373,12 +401,18 @@ def create_itinerary(trip: OneDayTripRequest):
             ),
             "activity_costs_known": False,
         },
-        "target_stop_count": itinerary["target_stop_count"],
-        "selected_stop_count": itinerary["selected_stop_count"],
-        "stops": scheduled_stops,
-        "travel_summary": travel_summary,
+
+        # New grouped daily plans.
+        "daily_plans": daily_plans,
+
+        # Combined fields retained for the existing frontend.
+        "target_stop_count": total_target_stops,
+        "selected_stop_count": len(all_stops),
+        "stops": all_stops,
+        "travel_summary": summarize_travel(all_stops),
+
         "schedule_basis": (
-            "Starts at 09:00 destination local time. "
+            "Each day starts at 09:00 destination local time. "
             "Uses assumed visit lengths and estimated driving times, "
             "with 15-minute fallback buffers when routing is unavailable."
         ),
@@ -388,13 +422,15 @@ def create_itinerary(trip: OneDayTripRequest):
         "sources": {
             "attractions": "OpenTripMap",
             "weather": (
-                "Open-Meteo" if data["weather"] is not None else None
+                "Open-Meteo"
+                if data["weather"] is not None
+                else None
             ),
             "routing": (
                 "OSRM / OpenStreetMap contributors"
                 if any(
                     stop["travel_before"] is not None
-                    for stop in scheduled_stops
+                    for stop in all_stops
                 )
                 else None
             ),

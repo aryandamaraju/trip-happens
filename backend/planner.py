@@ -1,9 +1,8 @@
 from datetime import date
-
 from fastapi import HTTPException
-
 from attractions import search_attractions
 from weather import get_weather
+from itinerary import INTEREST_CATEGORIES
 
 
 # Gather attractions and weather for the requested trip.
@@ -13,16 +12,60 @@ def gather_trip_data(
     days: int,
     radius: int,
     trip_date: date | None = None,
+    interests: list[str] | None = None,
 ):
     warnings = []
 
-    # Attractions are required for planning.
-    attractions = search_attractions(latitude, longitude, radius)
+    # Convert requested interests into provider categories.
+    categories = []
 
-    if not attractions:
-        warnings.append(
-            "No named attractions were found. Try a larger search radius."
+    for interest in interests or []:
+        category = INTEREST_CATEGORIES.get(
+            interest.strip().lower()
         )
+
+        if category is not None and category not in categories:
+            categories.append(category)
+
+    attractions = []
+
+    if interests and not categories:
+        # No supported interests means there is nothing useful to search.
+        warnings.append(
+            "None of the requested interests have a supported search "
+            "category. Try museums, history, nature, or architecture."
+        )
+
+    else:
+        kinds = (
+            ",".join(categories)
+            if categories
+            else "interesting_places"
+        )
+
+        search_result = search_attractions(
+            latitude=latitude,
+            longitude=longitude,
+            radius=radius,
+            kinds=kinds,
+            limit=500,
+            include_search_info=True,
+        )
+
+        attractions = search_result["attractions"]
+
+        if search_result["limit_reached"]:
+            warnings.append(
+                "The attraction search reached its 500-result limit. "
+                "Additional places may exist within the search radius "
+                "but were not returned."
+            )
+
+        if not attractions:
+            warnings.append(
+                "No named attractions were returned for this search. "
+                "Try different interests or another destination."
+            )
 
     weather = None
 

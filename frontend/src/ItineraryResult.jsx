@@ -1,4 +1,5 @@
 function ItineraryResult({ itinerary }) {
+  const dailyPlans = itinerary.daily_plans ?? [];
   function downloadItinerary() {
     // Start with the main trip information.
     const lines = [
@@ -6,6 +7,7 @@ function ItineraryResult({ itinerary }) {
       "Draft itinerary",
       "",
       `Destination: ${itinerary.trip.destination}`,
+      `Number of days: ${itinerary.trip.days}`,
       `Trip date: ${itinerary.trip.trip_date ?? "Not selected"}`,
       `Budget: $${itinerary.budget_usd}`,
       "Budget has not been verified against activity costs.",
@@ -25,38 +27,52 @@ function ItineraryResult({ itinerary }) {
       );
     }
 
-    // Add each attraction and its schedule.
-    for (const stop of itinerary.stops) {
-      lines.push(`${stop.position}. ${stop.place.name}`);
+    // Add each day, then its attractions.
+    for (const day of dailyPlans) {
+      lines.push(
+        `DAY ${day.day}${day.date ? ` · ${day.date}` : ""}`,
+        `${day.selected_stop_count} of ${day.target_stop_count} target stops`,
+        ""
+      );
 
-      if (stop.schedule) {
+      if (day.stops.length === 0) {
         lines.push(
-          `Time: ${stop.schedule.suggested_start} to ${stop.schedule.suggested_end}`,
-          `Assumed visit: ${stop.schedule.assumed_visit_minutes} minutes`
+          "No additional matching attractions available in the retrieved results.",
+          ""
         );
       }
 
-      lines.push(`Reason: ${stop.reason}`);
+      for (const stop of day.stops) {
+        lines.push(`${stop.position}. ${stop.place.name}`);
 
-      if (stop.position === 1) {
-        lines.push("Travel to the first stop is not included.");
-      } else if (stop.travel_before) {
-        lines.push(
-          `Estimated drive from previous stop: ${stop.travel_before.scheduled_minutes} minutes`,
-          `Driving distance: ${stop.travel_before.distance_km} km`
-        );
-      } else {
-        const buffer =
-          stop.schedule?.assumed_buffer_before_minutes ?? 15;
+        if (stop.schedule) {
+          lines.push(
+            `Time: ${stop.schedule.suggested_start} to ${stop.schedule.suggested_end}`,
+            `Assumed visit: ${stop.schedule.assumed_visit_minutes} minutes`
+          );
+        }
 
-        lines.push(
-          `Driving estimate unavailable. Assumed buffer: ${buffer} minutes.`
-        );
-      }
+        lines.push(`Reason: ${stop.reason}`);
 
-      lines.push("");
+        if (stop.position === 1) {
+          lines.push("Travel to the first stop is not included.");
+        } else if (stop.travel_before) {
+          lines.push(
+            `Estimated drive from previous stop: ${stop.travel_before.scheduled_minutes} minutes`,
+            `Driving distance: ${stop.travel_before.distance_km} km`
+          );
+        } else {
+          const buffer =
+            stop.schedule?.assumed_buffer_before_minutes ?? 15;
+
+          lines.push(
+            `Driving estimate unavailable. Assumed buffer: ${buffer} minutes.`
+          );
+        }
+
+        lines.push("");
     }
-
+  }
     // Include the weather shown on the page.
     lines.push("WEATHER");
 
@@ -141,7 +157,8 @@ function ItineraryResult({ itinerary }) {
       </button>      
       <p>{itinerary.trip.destination}</p>
       <p>
-        {itinerary.selected_stop_count} stops · Budget: $
+        {itinerary.trip.days} day(s) ·{" "}
+        {itinerary.selected_stop_count} total stops · Total trip budget: $
         {itinerary.budget_usd}
       </p>
       <p>Budget has not been verified against activity costs.</p>
@@ -175,9 +192,9 @@ function ItineraryResult({ itinerary }) {
       {/* Summarize travel between the selected stops. */}
       {itinerary.travel_summary && (
         <div className="travel-details">
-          <h3>Travel between stops</h3>
+          <h3>Travel across the whole trip</h3>
 
-          {itinerary.stops.length < 2 ? (
+          {itinerary.travel_summary.estimated_journeys + itinerary.travel_summary.fallback_journeys === 0 ? (
             <p>There are no journeys between stops.</p>
           ) : (
             <>
@@ -204,8 +221,8 @@ function ItineraryResult({ itinerary }) {
               )}
 
               <p>
-                Excludes travel to the first stop and from the last stop.
-                Parking and walking to entrances are not included.
+                Excludes travel to each day's first stop, from each day's last stop,
+                and between days. Parking and walking to entrances are not included.
               </p>
             </>
           )}
@@ -216,94 +233,170 @@ function ItineraryResult({ itinerary }) {
         <p>No stops were found. Try another destination.</p>
       )}
 
-      {itinerary.stops.map((stop) => (
-        <article className="stop-card" key={stop.place.id}>
+      {dailyPlans.map((day) => (
+        <section className="day-section" key={day.day}>
           <h3>
-            {stop.position}. {stop.place.name}
+            Day {day.day}
+            {day.date ? ` · ${day.date}` : ""}
           </h3>
 
-          {stop.schedule && (
-            <>
-              <p>
-                <strong>
-                  {stop.schedule.suggested_start}–
-                  {stop.schedule.suggested_end}
-                </strong>
-              </p>
-              <p>
-                Assumed visit: {stop.schedule.assumed_visit_minutes} minutes
-              </p>
-            </>
-          )}
+          <p>
+            {day.selected_stop_count} of {day.target_stop_count} target stops
+          </p>
 
-          <p>{stop.reason}</p>
-
-          {/* Explain the journey from the previous attraction. */}
-          {stop.position === 1 ? (
+          {day.stops.length === 0 && (
             <p>
-              First stop. Travel to this attraction is not included.
+              No additional matching attractions were available in the retrieved
+              results for this day. Try fewer days, different interests, or another
+              destination.
             </p>
-          ) : stop.travel_before ? (
+          )}
+
+          {day.travel_summary && day.stops.length > 1 && (
             <div className="travel-details">
               <p>
-                <strong>Drive from previous stop:</strong>{" "}
-                {stop.travel_before.scheduled_minutes} minutes
+                Available driving estimates:{" "}
+                {day.travel_summary.estimated_driving_minutes} minutes
                 {" · "}
-                {stop.travel_before.distance_km} km
+                {day.travel_summary.estimated_distance_km} km
               </p>
 
-              <p>
-                Estimated by OSRM. Parking and walking to the entrance
-                are not included.
-              </p>
-            </div>
-          ) : (
-            <div className="travel-details">
-              <p>
-                <strong>Travel estimate unavailable.</strong>{" "}
-                The schedule allows an assumed{" "}
-                {stop.schedule?.assumed_buffer_before_minutes ?? 15}
-                -minute buffer from the previous stop.
-              </p>
-
-              <p>The actual journey may take longer.</p>
+              {day.travel_summary.fallback_journeys > 0 && (
+                <p>
+                  Estimates are missing for{" "}
+                  {day.travel_summary.fallback_journeys} journey(s).
+                  The schedule includes{" "}
+                  {day.travel_summary.fallback_buffer_minutes} minutes
+                  of assumed buffers for those journeys.
+                </p>
+              )}
             </div>
           )}
-        </article>
+
+          {day.date && (
+            <div>
+              <h4>Weather for this day</h4>
+
+              {day.weather ? (
+                <>
+                  <p>
+                    High:{" "}
+                    {day.weather.high_f == null
+                      ? "Unavailable"
+                      : `${day.weather.high_f}°F`}
+                    {" · "}
+                    Low:{" "}
+                    {day.weather.low_f == null
+                      ? "Unavailable"
+                      : `${day.weather.low_f}°F`}
+                  </p>
+
+                  <p>
+                    Maximum precipitation chance:{" "}
+                    {day.weather.precipitation_chance_max_percent == null
+                      ? "Unavailable"
+                      : `${day.weather.precipitation_chance_max_percent}%`}
+                  </p>
+                </>
+              ) : (
+                <p>Weather is unavailable for this date.</p>
+              )}
+            </div>
+          )}
+
+          {day.stops.map((stop) => (
+            <article className="stop-card" key={stop.place.id}>
+              <h4>
+                {stop.position}. {stop.place.name}
+              </h4>
+
+              {stop.schedule && (
+                <>
+                  <p>
+                    <strong>
+                      {stop.schedule.suggested_start} to{" "}
+                      {stop.schedule.suggested_end}
+                    </strong>
+                  </p>
+
+                  <p>
+                    Assumed visit:{" "}
+                    {stop.schedule.assumed_visit_minutes} minutes
+                  </p>
+                </>
+              )}
+
+              <p>{stop.reason}</p>
+
+              {stop.position === 1 ? (
+                <p>
+                  First stop of this day. Travel to this attraction
+                  is not included.
+                </p>
+              ) : stop.travel_before ? (
+                <div className="travel-details">
+                  <p>
+                    Drive from previous stop:{" "}
+                    {stop.travel_before.scheduled_minutes} minutes
+                    {" · "}
+                    {stop.travel_before.distance_km} km
+                  </p>
+
+                  <p>
+                    Estimated by OSRM. Parking and walking to the
+                    entrance are not included.
+                  </p>
+                </div>
+              ) : (
+                <div className="travel-details">
+                  <p>
+                    Driving estimate unavailable. Assumed buffer:{" "}
+                    {stop.schedule?.assumed_buffer_before_minutes ?? 15}
+                    {" minutes. The journey may take longer."}
+                  </p>
+                </div>
+              )}
+            </article>
+          ))}
+        </section>
       ))}
 
-      <h3>Weather forecast</h3>
-      {itinerary.trip.trip_date ? (
-        <p>
-          Trip date: {itinerary.trip.trip_date}.
-          Weather is shown only for matching dates when available.
-        </p>
-      ) : (
-        <p>
-          No trip date was selected. This forecast starts today
-          at the destination.
-        </p>
-      )}
+      {!itinerary.trip.trip_date && (
+        <>
+          <h3>Weather forecast</h3>
+          {itinerary.trip.trip_date ? (
+            <p>
+              Trip date: {itinerary.trip.trip_date}.
+              Weather is shown only for matching dates when available.
+            </p>
+          ) : (
+            <p>
+              No trip date was selected. This forecast starts today
+              at the destination.
+            </p>
+          )}
 
-      {itinerary.weather ? (
-        itinerary.weather.forecast.map((day) => (
-          <div key={day.date}>
-            <p><strong>{day.date}</strong></p>
-            <p>
-              High: {day.high_f == null ? "Unavailable" : `${day.high_f}°F`}
-              {" · "}
-              Low: {day.low_f == null ? "Unavailable" : `${day.low_f}°F`}
-            </p>
-            <p>
-              Maximum precipitation chance:{" "}
-              {day.precipitation_chance_max_percent == null
-                ? "Unavailable"
-                : `${day.precipitation_chance_max_percent}%`}
-            </p>
-          </div>
-        ))
-      ) : (
-        <p>Weather is unavailable.</p>
+          {itinerary.weather ? (
+            itinerary.weather.forecast.map((day) => (
+              <div key={day.date}>
+                <p><strong>{day.date}</strong></p>
+                <p>
+                  High: {day.high_f == null ? "Unavailable" : `${day.high_f}°F`}
+                  {" · "}
+                  Low: {day.low_f == null ? "Unavailable" : `${day.low_f}°F`}
+                </p>
+                <p>
+                  Maximum precipitation chance:{" "}
+                  {day.precipitation_chance_max_percent == null
+                    ? "Unavailable"
+                    : `${day.precipitation_chance_max_percent}%`}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p>Weather is unavailable.</p>
+          )}
+        </>
       )}
 
       <h3>Things to know</h3>

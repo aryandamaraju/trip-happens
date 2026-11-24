@@ -1,6 +1,8 @@
 # Match common user interests to OpenTripMap categories
 import math
 
+from datetime import date, timedelta
+
 INTEREST_CATEGORIES = {
     "museum": "museums",
     "museums": "museums",
@@ -110,6 +112,37 @@ def get_popularity_priority(place: dict, popularity: str):
 
     return 0
 
+# Identify likely duplicate listings of the same attraction.
+def is_same_place(first: dict, second: dict):
+    if first["id"] == second["id"]:
+        return True
+
+    # Ignore capitalization, punctuation, and extra spaces.
+    first_name = "".join(
+        character
+        for character in first["name"].casefold()
+        if character.isalnum()
+    )
+
+    second_name = "".join(
+        character
+        for character in second["name"].casefold()
+        if character.isalnum()
+    )
+
+    if not first_name or first_name != second_name:
+        return False
+
+    distance_km = distance_between(
+        first["latitude"],
+        first["longitude"],
+        second["latitude"],
+        second["longitude"],
+    )
+
+    # Our project rule: matching names within 100 meters.
+    return distance_km <= 0.1
+
 def build_itinerary(attractions: list, interests: list[str], pace: str, variety: str = "medium", popularity: str = "mixed", prefer_museums: bool = False):
     stop_limits = {
         "relaxed": 3,
@@ -176,6 +209,27 @@ def build_itinerary(attractions: list, interests: list[str], pace: str, variety:
         ),
         reverse=True,
     )
+
+    # Only schedule places matching a supported requested interest.
+    candidates = [
+        place
+        for place in candidates
+        if place["interest_score"] > 0
+    ]
+
+    # Keep the first ranked listing for each likely distinct place.
+    unique_candidates = []
+
+    for place in candidates:
+        duplicate = any(
+            is_same_place(place, existing)
+            for existing in unique_candidates
+        )
+
+        if not duplicate:
+            unique_candidates.append(place)
+
+    candidates = unique_candidates
 
     selected = select_places(candidates, stop_limit, variety)
 
@@ -276,15 +330,15 @@ def build_itinerary(attractions: list, interests: list[str], pace: str, variety:
 
     if len(stops) < stop_limit:
         warnings.append(
-            "Fewer named attractions were available than the target stop count."
+            "Not enough distinct attractions matched the supported "
+            "interests in the retrieved results. Unrelated places "
+            "were not added just to fill the schedule."
         )
 
-    if stops and wanted_categories:
-        if not any(stop["place"]["interest_score"] > 0 for stop in stops):
-            warnings.append(
-                "No retrieved attractions matched the supported interests. "
-                "The stops shown are nearby alternatives."
-            )
+    if not stops and wanted_categories:
+        warnings.append(
+            "No unused matching attractions were available for this day."
+        )
 
     return {
         "target_stop_count": stop_limit,
@@ -358,3 +412,105 @@ def order_stops(stops: list, start_lat: float, start_lon: float):
         current_lon = next_stop["place"]["longitude"]
 
     return ordered
+
+# Select different attractions for each day of the trip.
+def build_daily_itineraries(
+    attractions: list,
+    interests: list[str],
+    pace: str,
+    days: int,
+    variety: str = "medium",
+    popularity: str = "mixed",
+    trip_date: date | None = None,
+    weather: dict | None = None,
+):
+    if not 1 <= days <= 7:
+        raise ValueError("Trips must be between 1 and 7 days.")
+
+    # Make sure the final date can be represented.
+    if trip_date is not None:
+        days_available = (date.max - trip_date).days
+
+        if days - 1 > days_available:
+            raise ValueError("The trip end date is outside the supported range.")
+
+    remaining_attractions = attractions.copy()
+    daily_plans = []
+
+    for day_index in range(days):
+        day_number = day_index + 1
+        current_date = None
+        daily_weather = None
+        prefer_museums = False
+
+        if trip_date is not None:
+            current_date = trip_date + timedelta(days=day_index)
+
+            # Find the forecast for this exact day.
+            if weather is not None:
+                for forecast in weather["forecast"]:
+                    if forecast["date"] == current_date.isoformat():
+                        daily_weather = forecast
+                        break
+
+        # Apply the weather rule separately for each dated day.
+        if daily_weather is not None:
+            chance = daily_weather.get(
+                "precipitation_chance_max_percent"
+            )
+
+            if (
+                not isinstance(chance, bool)
+                and isinstance(chance, (int, float))
+                and 60 <= chance <= 100
+            ):
+                prefer_museums = True
+
+        # Reuse our existing interest and preference matching.
+        itinerary = build_itinerary(
+            attractions=remaining_attractions,
+            interests=interests,
+            pace=pace,
+            variety=variety,
+            popularity=popularity,
+            prefer_museums=prefer_museums,
+        )
+
+        warnings = itinerary["warnings"].copy()
+
+        if current_date is not None and daily_weather is None:
+            warnings.append(
+                "Weather is unavailable for this date. "
+                "Weather preferences were not applied."
+            )
+
+        daily_plans.append({
+            "day": day_number,
+            "date": (
+                current_date.isoformat()
+                if current_date is not None
+                else None
+            ),
+            "target_stop_count": itinerary["target_stop_count"],
+            "selected_stop_count": itinerary["selected_stop_count"],
+            "stops": itinerary["stops"],
+            "weather": daily_weather,
+            "warnings": warnings,
+        })
+
+        # Remove selected places and their likely duplicate listings.
+        selected_places = [
+            stop["place"]
+            for stop in itinerary["stops"]
+        ]
+
+        remaining_attractions = [
+            place
+            for place in remaining_attractions
+            if not any(
+                is_same_place(place, selected)
+                for selected in selected_places
+            )
+        ]
+
+    return daily_plans

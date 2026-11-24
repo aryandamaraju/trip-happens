@@ -131,3 +131,9 @@ textarea {
 .travel-details p {
   margin: 4px 0;
 }
+
+.day-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 2px solid #d8e2dc;
+}
