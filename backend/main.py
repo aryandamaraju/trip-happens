@@ -1,5 +1,5 @@
 from typing import Literal
-
+from budget import check_budget
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 from locations import search_locations
@@ -387,11 +387,22 @@ def create_itinerary(trip: ItineraryRequest):
         "may have fewer suitable places.",
     ])
 
+    # Admission prices are unknown until a price source is connected.
+    activity_prices: list[float | None] = [None for stop in all_stops]
+
+    # Check the budget across the whole trip.
+    budget_check = check_budget(
+        total_budget=trip.budget,
+        food_budget=trip.food_budget,
+        activity_prices=activity_prices,
+    )
+
     return {
         "status": "draft",
         "trip": trip,
         "budget_usd": trip.budget,
         "budget_verified": False,
+        "budget_check": budget_check,
         "budget_breakdown": {
             "total_usd": trip.budget,
             "food_allowance_usd": trip.food_budget,

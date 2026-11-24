@@ -112,25 +112,31 @@ def get_popularity_priority(place: dict, popularity: str):
 
     return 0
 
-# Identify likely duplicate listings of the same attraction.
+def clean_place_name(name: str):
+    # Ignore capitalization and replace punctuation with spaces.
+    cleaned = ""
+
+    for character in name.casefold():
+        if character.isalnum():
+            cleaned += character
+        else:
+            cleaned += " "
+
+    return " ".join(cleaned.split())
+
+
 def is_same_place(first: dict, second: dict):
-    if first["id"] == second["id"]:
+    # Matching provider IDs identify the same attraction.
+    first_id = first.get("id")
+    second_id = second.get("id")
+
+    if first_id and first_id == second_id:
         return True
 
-    # Ignore capitalization, punctuation, and extra spaces.
-    first_name = "".join(
-        character
-        for character in first["name"].casefold()
-        if character.isalnum()
-    )
+    first_name = clean_place_name(first.get("name", ""))
+    second_name = clean_place_name(second.get("name", ""))
 
-    second_name = "".join(
-        character
-        for character in second["name"].casefold()
-        if character.isalnum()
-    )
-
-    if not first_name or first_name != second_name:
+    if not first_name or not second_name:
         return False
 
     distance_km = distance_between(
@@ -140,8 +146,39 @@ def is_same_place(first: dict, second: dict):
         second["longitude"],
     )
 
-    # Our project rule: matching names within 100 meters.
-    return distance_km <= 0.1
+    # Matching names must also be close to each other.
+    if first_name == second_name:
+        return distance_km <= 0.1
+
+    # For slightly different names, require nearby locations.
+    if distance_km > 0.15:
+        return False
+
+    first_words = first_name.split()
+    second_words = second_name.split()
+
+    if len(first_words) <= len(second_words):
+        shorter_words = first_words
+        longer_words = second_words
+    else:
+        shorter_words = second_words
+        longer_words = first_words
+
+    # Avoid matching places based on a single generic word.
+    if len(shorter_words) < 2:
+        return False
+
+    # Allow one extra word, such as a city name.
+    if len(longer_words) != len(shorter_words) + 1:
+        return False
+
+    shorter_name = " ".join(shorter_words)
+    longer_name = " ".join(longer_words)
+
+    return (
+        longer_name.startswith(shorter_name + " ")
+        or longer_name.endswith(" " + shorter_name)
+    )
 
 def build_itinerary(attractions: list, interests: list[str], pace: str, variety: str = "medium", popularity: str = "mixed", prefer_museums: bool = False):
     stop_limits = {

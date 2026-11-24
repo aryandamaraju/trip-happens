@@ -27,6 +27,50 @@ function ItineraryResult({ itinerary }) {
       );
     }
 
+    // Include the budget calculation in the downloaded file.
+    if (itinerary.budget_check) {
+      const budget = itinerary.budget_check;
+
+      lines.push(
+        "",
+        "BUDGET CHECK",
+        budget.message,
+        `Food allowance: $${budget.food_allowance.toFixed(2)}`,
+        `Known activity costs: $${budget.known_activity_total.toFixed(2)}`,
+        `Amount accounted for: $${budget.accounted_total.toFixed(2)}`
+      );
+
+      if (budget.remaining_after_known_costs >= 0) {
+        lines.push(
+          `Remaining after known costs: $${budget.remaining_after_known_costs.toFixed(2)}`
+        );
+      } else {
+        lines.push(
+          `Over budget by: $${Math.abs(
+            budget.remaining_after_known_costs
+          ).toFixed(2)}`
+        );
+      }
+
+      lines.push(
+        `Activities with prices: ${budget.priced_activity_count}`,
+        `Activities with unknown prices: ${budget.unknown_activity_count}`
+      );
+
+      if (budget.unknown_activity_count > 0) {
+        lines.push(
+          "Unknown prices are not treated as free. Remaining money may still be needed for these activities."
+        );
+      }
+
+      lines.push(
+        "This calculation covers activity admission and the food allowance.",
+        "Lodging and transportation are excluded.",
+        "Admission prices have not been independently verified.",
+        ""
+      );
+    }
+
     // Add each day, then its attractions.
     for (const day of dailyPlans) {
       lines.push(
@@ -188,6 +232,66 @@ function ItineraryResult({ itinerary }) {
         </div>
       )}
       <p>Suggested times are in the destination's local time.</p>
+
+      {itinerary.budget_check && (
+        <div className="budget-check">
+          <h3>Budget check</h3>
+
+          <p>{itinerary.budget_check.message}</p>
+
+          <p>
+            <strong>Food allowance:</strong>{" "}
+            ${itinerary.budget_check.food_allowance.toFixed(2)}
+          </p>
+
+          <p>
+            <strong>Known activity costs:</strong>{" "}
+            ${itinerary.budget_check.known_activity_total.toFixed(2)}
+          </p>
+
+          <p>
+            <strong>Amount accounted for:</strong>{" "}
+            ${itinerary.budget_check.accounted_total.toFixed(2)}
+          </p>
+
+          {itinerary.budget_check.remaining_after_known_costs >= 0 ? (
+            <p>
+              <strong>Remaining after known costs:</strong>{" "}
+              $
+              {itinerary.budget_check.remaining_after_known_costs.toFixed(2)}
+            </p>
+          ) : (
+            <p>
+              <strong>Over budget by:</strong>{" "}
+              $
+              {Math.abs(
+                itinerary.budget_check.remaining_after_known_costs
+              ).toFixed(2)}
+            </p>
+          )}
+
+          <p>
+            Activities with prices:{" "}
+            {itinerary.budget_check.priced_activity_count}
+            {" · "}
+            Activities with unknown prices:{" "}
+            {itinerary.budget_check.unknown_activity_count}
+          </p>
+
+          {itinerary.budget_check.unknown_activity_count > 0 && (
+            <p>
+              Unknown prices are not treated as free. Any remaining
+              money may still be needed for these activities.
+            </p>
+          )}
+
+          <p>
+            This calculation covers activity admission and your food
+            allowance. It excludes lodging and transportation.
+            Admission prices have not been independently verified.
+          </p>
+        </div>
+      )}
 
       {/* Summarize travel between the selected stops. */}
       {itinerary.travel_summary && (

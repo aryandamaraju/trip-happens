@@ -52,6 +52,13 @@ def gather_trip_data(
             include_search_info=True,
         )
 
+        # Make sure the search includes attractions and search information.
+        if not isinstance(search_result, dict):
+            raise HTTPException(
+                status_code=502,
+                detail="Attraction search returned an unexpected format.",
+            )
+
         attractions = search_result["attractions"]
 
         if search_result["limit_reached"]:

@@ -13,6 +13,20 @@ Reserved for food: $30.00
 Available for activities: $70.00
 These are allowances, not verified activity costs.
 
+
+BUDGET CHECK
+Some activity prices are unknown, so the full budget cannot be checked.
+Food allowance: $30.00
+Known activity costs: $0.00
+Amount accounted for: $30.00
+Remaining after known costs: $70.00
+Activities with prices: 0
+Activities with unknown prices: 35
+Unknown prices are not treated as free. Remaining money may still be needed for these activities.
+This calculation covers activity admission and the food allowance.
+Lodging and transportation are excluded.
+Admission prices have not been independently verified.
+
 DAY 1 · 2026-11-24
 5 of 5 target stops
 
@@ -22,35 +36,109 @@ Assumed visit: 45 minutes
 Reason: Matches these requested categories: historic
 Travel to the first stop is not included.
 
-2. Business and Government Historic District
+2. Black Soldiers Statue
 Time: 09:47 to 10:32
 Assumed visit: 45 minutes
 Reason: Matches these requested categories: historic
 Estimated drive from previous stop: 2 minutes
-Driving distance: 0.58 km
+Driving distance: 0.54 km
 
-3. Black Soldiers Statue
-Time: 10:35 to 11:20
-Assumed visit: 45 minutes
-Reason: Matches these requested categories: historic
-Estimated drive from previous stop: 3 minutes
-Driving distance: 0.79 km
-
-4. Peale Museum
-Time: 11:22 to 12:52
+3. Peale Museum
+Time: 10:34 to 12:04
 Assumed visit: 90 minutes
 Reason: Matches these requested categories: museums
 Estimated drive from previous stop: 2 minutes
 Driving distance: 0.45 km
 
-5. War of 1812 Bomb & Rack
-Time: 12:55 to 13:40
+4. Chesapeake
+Time: 12:07 to 13:37
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums
+Estimated drive from previous stop: 3 minutes
+Driving distance: 1.17 km
+
+5. Little Montgomery Street Historic District
+Time: 13:42 to 14:27
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 5 minutes
+Driving distance: 2.22 km
+
+DAY 2 · 2026-11-25
+5 of 5 target stops
+
+1. Business and Government Historic District
+Time: 09:00 to 09:45
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Travel to the first stop is not included.
+
+2. Maryland Art Place
+Time: 09:46 to 11:16
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums
+Estimated drive from previous stop: 1 minutes
+Driving distance: 0.44 km
+
+3. National Aquarium
+Time: 11:19 to 12:49
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums
+Estimated drive from previous stop: 3 minutes
+Driving distance: 1.06 km
+
+4. John Mifflin Hood Monument
+Time: 12:53 to 13:38
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 4 minutes
+Driving distance: 1.64 km
+
+5. Westminster Presbyterian Church
+Time: 13:41 to 14:26
 Assumed visit: 45 minutes
 Reason: Matches these requested categories: historic
 Estimated drive from previous stop: 3 minutes
-Driving distance: 0.9 km
+Driving distance: 1.14 km
 
-DAY 2 · 2026-11-25
+DAY 3 · 2026-11-26
+5 of 5 target stops
+
+1. War of 1812 Bomb & Rack
+Time: 09:00 to 09:45
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Travel to the first stop is not included.
+
+2. Historic Ships in Baltimore
+Time: 09:48 to 11:18
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums This museum received a weather preference because the selected date has a high precipitation chance. Indoor access has not been verified.
+Estimated drive from previous stop: 3 minutes
+Driving distance: 1.37 km
+
+3. Port Discovery Museum
+Time: 11:21 to 12:51
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums This museum received a weather preference because the selected date has a high precipitation chance. Indoor access has not been verified.
+Estimated drive from previous stop: 3 minutes
+Driving distance: 0.97 km
+
+4. Marquis de Lafayette Monument
+Time: 12:55 to 13:40
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 4 minutes
+Driving distance: 1.83 km
+
+5. Ridgelys Delight Historic District
+Time: 13:45 to 14:30
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 5 minutes
+Driving distance: 2.35 km
+
+DAY 4 · 2026-11-27
 5 of 5 target stops
 
 1. Baltimore City Fire Fighters Monument
@@ -59,36 +147,36 @@ Assumed visit: 45 minutes
 Reason: Matches these requested categories: historic
 Travel to the first stop is not included.
 
-2. Gay Street Historic District
-Time: 09:46 to 10:31
-Assumed visit: 45 minutes
-Reason: Matches these requested categories: historic
-Estimated drive from previous stop: 1 minutes
-Driving distance: 0.3 km
-
-3. Maryland Art Place
-Time: 10:34 to 12:04
+2. USS Constellation
+Time: 09:48 to 11:18
 Assumed visit: 90 minutes
-Reason: Matches these requested categories: museums
+Reason: Matches these requested categories: museums This museum received a weather preference because the selected date has a high precipitation chance. Indoor access has not been verified.
 Estimated drive from previous stop: 3 minutes
-Driving distance: 1.16 km
+Driving distance: 1.37 km
 
-4. Historic Ships in Baltimore
-Time: 12:09 to 13:39
+3. Ripley's Believe it or not
+Time: 11:22 to 12:52
 Assumed visit: 90 minutes
-Reason: Matches these requested categories: museums
-Estimated drive from previous stop: 5 minutes
-Driving distance: 2.16 km
+Reason: Matches these requested categories: museums This museum received a weather preference because the selected date has a high precipitation chance. Indoor access has not been verified.
+Estimated drive from previous stop: 4 minutes
+Driving distance: 1.5 km
 
-5. John Mifflin Hood Monument
-Time: 13:42 to 14:27
+4. Severn Teackle Wallis Monument
+Time: 12:55 to 13:40
 Assumed visit: 45 minutes
 Reason: Matches these requested categories: historic
 Estimated drive from previous stop: 3 minutes
-Driving distance: 1.03 km
+Driving distance: 1.56 km
 
-DAY 3 · 2026-11-26
-3 of 5 target stops
+5. Pigtown Food For Thought Community Garden
+Time: 13:46 to 14:31
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 6 minutes
+Driving distance: 3.34 km
+
+DAY 5 · 2026-11-28
+5 of 5 target stops
 
 1. September 11, 2001 Memorial
 Time: 09:00 to 09:45
@@ -96,39 +184,107 @@ Assumed visit: 45 minutes
 Reason: Matches these requested categories: historic
 Travel to the first stop is not included.
 
-2. Port Discovery Museum
-Time: 09:47 to 11:17
-Assumed visit: 90 minutes
-Reason: Matches these requested categories: museums This museum received a weather preference because the selected date has a high precipitation chance. Indoor access has not been verified.
-Estimated drive from previous stop: 2 minutes
-Driving distance: 0.73 km
-
-3. George Washington Bicentennial Marker
-Time: 11:21 to 12:06
+2. George Washington Bicentennial Marker
+Time: 09:49 to 10:34
 Assumed visit: 45 minutes
 Reason: Matches these requested categories: historic
 Estimated drive from previous stop: 4 minutes
-Driving distance: 1.46 km
+Driving distance: 1.49 km
 
-DAY 4 · 2026-11-27
-0 of 5 target stops
+3. C. Grimaldis Gallery
+Time: 10:35 to 12:05
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums
+Estimated drive from previous stop: 1 minutes
+Driving distance: 0.18 km
 
-No additional matching attractions available in the retrieved results.
+4. George Peabody Monument
+Time: 12:07 to 12:52
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 2 minutes
+Driving distance: 0.63 km
 
-DAY 5 · 2026-11-28
-0 of 5 target stops
-
-No additional matching attractions available in the retrieved results.
+5. Union Square-Hollins Market Historic District
+Time: 12:58 to 13:43
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 6 minutes
+Driving distance: 3.11 km
 
 DAY 6 · 2026-11-29
-0 of 5 target stops
+5 of 5 target stops
 
-No additional matching attractions available in the retrieved results.
+1. Gay Street Historic District
+Time: 09:00 to 09:45
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Travel to the first stop is not included.
+
+2. Baltimore City Fraternal Order of Police Memorial
+Time: 09:47 to 10:32
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 2 minutes
+Driving distance: 0.59 km
+
+3. USS Torsk
+Time: 10:35 to 12:05
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums
+Estimated drive from previous stop: 3 minutes
+Driving distance: 0.98 km
+
+4. National Aquarium Baltimore
+Time: 12:07 to 13:37
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums
+Estimated drive from previous stop: 2 minutes
+Driving distance: 0.38 km
+
+5. Washington Monument
+Time: 13:42 to 14:27
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 5 minutes
+Driving distance: 2.13 km
 
 DAY 7 · 2026-11-30
-0 of 5 target stops
+5 of 5 target stops
 
-No additional matching attractions available in the retrieved results.
+1. Cathedral Hill Historic District
+Time: 09:00 to 09:45
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Travel to the first stop is not included.
+
+2. Force
+Time: 09:48 to 10:33
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 3 minutes
+Driving distance: 0.98 km
+
+3. National Museum of Ceramic Art
+Time: 10:38 to 12:08
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums
+Estimated drive from previous stop: 5 minutes
+Driving distance: 1.88 km
+
+4. William Donald Shaefer Statue
+Time: 12:10 to 12:55
+Assumed visit: 45 minutes
+Reason: Matches these requested categories: historic
+Estimated drive from previous stop: 2 minutes
+Driving distance: 0.79 km
+
+5. B&O Railroad Museum Park
+Time: 13:01 to 14:31
+Assumed visit: 90 minutes
+Reason: Matches these requested categories: museums
+Estimated drive from previous stop: 6 minutes
+Driving distance: 2.5 km
 
 WEATHER
 Date: 2026-11-24
@@ -168,20 +324,7 @@ Maximum precipitation chance: 11%
 
 THINGS TO KNOW
 • Day 3: The selected date has at least a 60% precipitation chance. Museum preference is enabled alongside interest and variety matching. Museums may include outdoor areas, and the final stops may remain unchanged.
-• Day 3: Not enough distinct attractions matched the supported interests in the retrieved results. Unrelated places were not added just to fill the schedule.
 • Day 4: The selected date has at least a 60% precipitation chance. Museum preference is enabled alongside interest and variety matching. Museums may include outdoor areas, and the final stops may remain unchanged.
-• Day 4: The selected stops do not cover these requested categories: museums, historic
-• Day 4: Not enough distinct attractions matched the supported interests in the retrieved results. Unrelated places were not added just to fill the schedule.
-• Day 4: No unused matching attractions were available for this day.
-• Day 5: The selected stops do not cover these requested categories: museums, historic
-• Day 5: Not enough distinct attractions matched the supported interests in the retrieved results. Unrelated places were not added just to fill the schedule.
-• Day 5: No unused matching attractions were available for this day.
-• Day 6: The selected stops do not cover these requested categories: museums, historic
-• Day 6: Not enough distinct attractions matched the supported interests in the retrieved results. Unrelated places were not added just to fill the schedule.
-• Day 6: No unused matching attractions were available for this day.
-• Day 7: The selected stops do not cover these requested categories: museums, historic
-• Day 7: Not enough distinct attractions matched the supported interests in the retrieved results. Unrelated places were not added just to fill the schedule.
-• Day 7: No unused matching attractions were available for this day.
 • Each day starts at 09:00 destination local time. Visit lengths are assumptions.
 • Stops use a nearby-first order based on straight-line distance. This is not a guaranteed fastest driving route.
 • Driving estimates exclude live traffic, parking, and walking to entrances. Unavailable routes use assumed buffers.
