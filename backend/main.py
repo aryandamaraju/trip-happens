@@ -12,6 +12,7 @@ from itinerary import build_daily_itineraries, order_stops
 from schedule import add_schedule
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
+from admission import AdmissionRequest, lookup_admission
 
 # Create the backend app
 app = FastAPI(
@@ -447,3 +448,8 @@ def create_itinerary(trip: ItineraryRequest):
             ),
         },
     }
+
+# Look up one attraction only when the user requests it.
+@app.post("/attractions/admission")
+def get_admission(request: AdmissionRequest):
+    return lookup_admission(request)

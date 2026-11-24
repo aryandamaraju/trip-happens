@@ -1,5 +1,131 @@
+import { useEffect, useRef, useState } from "react";
+
+// Start fresh when a different itinerary is displayed.
 function ItineraryResult({ itinerary }) {
+  return (
+    <ItineraryContent
+      key={JSON.stringify(itinerary)}
+      itinerary={itinerary}
+    />
+  );
+}
+
+function ItineraryContent({ itinerary }) {
   const dailyPlans = itinerary.daily_plans ?? [];
+  const [admissions, setAdmissions] = useState({});
+  const [loadingDay, setLoadingDay] = useState(null);
+  const [priceError, setPriceError] = useState("");
+  const activeRequest = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      // Stop requesting more attractions if this result is removed.
+      activeRequest.current?.abort();
+    };
+  }, []);
+
+  function admissionKey(day, stop) {
+    return `${day.day}:${stop.place.id}`;
+  }
+
+  async function lookupDayPrices(day) {
+    if (activeRequest.current) {
+      return;
+    }
+
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    setLoadingDay(day.day);
+    setPriceError("");
+
+    try {
+      // Limit each click to at most five attractions.
+      for (const stop of day.stops.slice(0, 5)) {
+        if (controller.signal.aborted) {
+          break;
+        }
+
+        const key = admissionKey(day, stop);
+
+        // Reuse completed results, including an unknown price.
+        if (admissions[key]) {
+          continue;
+        }
+
+        const response = await fetch(
+          "http://127.0.0.1:8000/attractions/admission",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              name: stop.place.name,
+              destination: itinerary.trip.destination,
+              latitude: stop.place.latitude,
+              longitude: stop.place.longitude,
+              visit_date: day.date ?? null,
+            }),
+          }
+        );
+
+        let data;
+
+        try {
+          data = await response.json();
+        } catch {
+          throw new Error("The server returned an unexpected response.");
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            typeof data.detail === "string"
+              ? data.detail
+              : "Could not look up admission information."
+          );
+        }
+
+        if (
+          !data ||
+          !["listed_price", "unknown"].includes(data.status) ||
+          !Array.isArray(data.conditions)
+        ) {
+          throw new Error("The admission response was incomplete.");
+        }
+
+        if (
+          data.status === "listed_price" &&
+          (
+            typeof data.standard_adult_price_usd !== "number" ||
+            !Number.isFinite(data.standard_adult_price_usd) ||
+            data.standard_adult_price_usd < 0
+          )
+        ) {
+          throw new Error("The admission price was invalid.");
+        }
+
+        setAdmissions((previous) => ({
+          ...previous,
+          [key]: data,
+        }));
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        setPriceError(
+          `${error.message} Further lookups stopped. Completed results are kept.`
+        );
+      }
+    } finally {
+      if (activeRequest.current === controller) {
+        activeRequest.current = null;
+
+        if (!controller.signal.aborted) {
+          setLoadingDay(null);
+        }
+      }
+    }
+  }
   function downloadItinerary() {
     // Start with the main trip information.
     const lines = [
@@ -97,6 +223,39 @@ function ItineraryResult({ itinerary }) {
         }
 
         lines.push(`Reason: ${stop.reason}`);
+
+        const admission = admissions[admissionKey(day, stop)];
+
+        if (admission) {
+          if (admission.status === "listed_price") {
+            lines.push(
+              `Listed standard adult admission: $${admission.standard_adult_price_usd.toFixed(2)} USD`
+            );
+          } else {
+            lines.push("Admission price: unknown.");
+          }
+
+          if (admission.source_url) {
+            lines.push(`Price source: ${admission.source_url}`);
+          }
+
+          if (admission.supporting_quote) {
+            lines.push(`Supporting quote: ${admission.supporting_quote}`);
+          }
+
+          for (const condition of admission.conditions) {
+            lines.push(`Price condition: ${condition}`);
+          }
+
+          lines.push(
+            `Retrieved: ${admission.retrieved_at}`,
+            "Lookup: Tavily search and Gemini extraction.",
+            "Listed price only. Not verified for the visit date.",
+            "This lookup has not been included in the budget calculation."
+          );
+        } else {
+          lines.push("Admission price has not been looked up.");
+        }
 
         if (stop.position === 1) {
           lines.push("Travel to the first stop is not included.");
@@ -337,6 +496,15 @@ function ItineraryResult({ itinerary }) {
         <p>No stops were found. Try another destination.</p>
       )}
 
+      {loadingDay !== null && (
+        <p role="status">
+          Looking up Day {loadingDay}, one attraction at a time.
+          This may take a few minutes.
+        </p>
+      )}
+
+      {priceError && <p role="alert">{priceError}</p>}
+
       {dailyPlans.map((day) => (
         <section className="day-section" key={day.day}>
           <h3>
@@ -347,6 +515,30 @@ function ItineraryResult({ itinerary }) {
           <p>
             {day.selected_stop_count} of {day.target_stop_count} target stops
           </p>
+
+          {day.stops.length > 0 && (
+            <div className="admission-controls">
+              <button
+                type="button"
+                onClick={() => lookupDayPrices(day)}
+                disabled={
+                  loadingDay !== null ||
+                  day.stops.slice(0, 5).every(
+                    (stop) => admissions[admissionKey(day, stop)]
+                  )
+                }
+              >
+                {loadingDay === day.day
+                  ? "Looking up admission prices..."
+                  : "Look up this day's admission prices"}
+              </button>
+
+              <p>
+                Searches up to five attractions. Completed lookups
+                are reused while this itinerary remains open.
+              </p>
+            </div>
+          )}
 
           {day.stops.length === 0 && (
             <p>
@@ -431,6 +623,10 @@ function ItineraryResult({ itinerary }) {
               )}
 
               <p>{stop.reason}</p>
+
+              <AdmissionInfo
+                admission={admissions[admissionKey(day, stop)]}
+              />
 
               {stop.position === 1 ? (
                 <p>
@@ -530,6 +726,62 @@ function ItineraryResult({ itinerary }) {
         </p>
       )}
     </section>
+  );
+}
+
+function AdmissionInfo({ admission }) {
+  if (!admission) {
+    return <p>Admission price has not been looked up.</p>;
+  }
+
+  return (
+    <div className="admission-details">
+      <h5>Admission information</h5>
+
+      {admission.status === "listed_price" ? (
+        <p>
+          Listed standard adult admission:{" "}
+          <strong>
+            ${admission.standard_adult_price_usd.toFixed(2)} USD
+          </strong>
+        </p>
+      ) : (
+        <p>Admission price is unknown.</p>
+      )}
+
+      {admission.source_url &&
+        /^https?:\/\//i.test(admission.source_url) && (
+          <p>
+            <a
+              href={admission.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View price source
+            </a>
+          </p>
+        )}
+
+      {admission.supporting_quote && (
+        <blockquote>{admission.supporting_quote}</blockquote>
+      )}
+
+      <ul>
+        {admission.conditions.map((condition, index) => (
+          <li key={index}>{condition}</li>
+        ))}
+      </ul>
+
+      <p>
+        Retrieved: {admission.retrieved_at}
+        {admission.cached ? " (cached result)" : ""}
+      </p>
+
+      <p>
+        Found using Tavily and extracted by Gemini. Check the source
+        before booking. This is not a verified price for your visit date.
+      </p>
+    </div>
   );
 }
 

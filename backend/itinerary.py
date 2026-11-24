@@ -3,27 +3,88 @@ import math
 
 from datetime import date, timedelta
 
+# Match user interests to OpenTripMap categories.
 INTEREST_CATEGORIES = {
+    # Museums and history
     "museum": "museums",
     "museums": "museums",
     "history": "historic",
     "historic": "historic",
-    "nature": "natural",
+    "historical sites": "historic",
     "architecture": "architecture",
-}
 
+    # Art
+    "art": "art_galleries",
+    "gallery": "art_galleries",
+    "galleries": "art_galleries",
+    "art galleries": "art_galleries",
+    "sculptures": "sculptures",
+    "street art": "wall_painting",
+
+    # Nature and outdoor places
+    "nature": "natural",
+    "park": "gardens_and_parks",
+    "parks": "gardens_and_parks",
+    "garden": "gardens_and_parks",
+    "gardens": "gardens_and_parks",
+    "parks and gardens": "gardens_and_parks",
+    "beach": "beaches",
+    "beaches": "beaches",
+    "waterfalls": "waterfalls",
+    "nature reserves": "nature_reserves",
+    "national parks": "national_parks",
+    "viewpoints": "view_points",
+    "scenic views": "view_points",
+
+    # Animals
+    "zoo": "zoos",
+    "zoos": "zoos",
+    "aquarium": "aquariums",
+    "aquariums": "aquariums",
+
+    # Monuments and religious sites
+    "monument": "monuments_and_memorials",
+    "monuments": "monuments_and_memorials",
+    "memorials": "monuments_and_memorials",
+    "religion": "religion",
+    "religious sites": "religion",
+    "churches": "churches",
+    "cathedrals": "cathedrals",
+    "mosques": "mosques",
+    "synagogues": "synagogues",
+
+    # Entertainment venues
+    "theater": "theatres_and_entertainments",
+    "theaters": "theatres_and_entertainments",
+    "theatre": "theatres_and_entertainments",
+    "theatres": "theatres_and_entertainments",
+    "entertainment": "theatres_and_entertainments",
+}
 # Categories used to compare activity types.
-# Broad tags like "interesting_places" are not useful for this.
 ACTIVITY_TYPES = {
     "museums",
+    "art_galleries",
+    "sculptures",
+    "wall_painting",
     "historic_districts",
+    "monuments_and_memorials",
     "monuments",
     "architecture",
     "natural",
     "gardens_and_parks",
+    "beaches",
+    "waterfalls",
+    "nature_reserves",
+    "view_points",
+    "zoos",
+    "aquariums",
     "churches",
+    "cathedrals",
+    "mosques",
+    "synagogues",
+    "buddhist_temples",
+    "hindu_temples",
     "theatres_and_entertainments",
-    "sculptures",
 }
 
 
