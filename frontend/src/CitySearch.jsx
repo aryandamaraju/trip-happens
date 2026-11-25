@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-function CitySearch({ onSelect }) {
-  const [query, setQuery] = useState("");
+function CitySearch({ onSelect, initialQuery = "" }) {
+  const [query, setQuery] = useState(initialQuery);
   const [locations, setLocations] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(false);

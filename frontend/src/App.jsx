@@ -165,8 +165,22 @@ function App() {
 
   return (
     <main className="container">
+    <header className="hero">
+      <p className="eyebrow">A little planning. More exploring.</p>
+
       <h1>Trip Happens</h1>
-      <p>Plan 1 to 7 days in one destination based on your interests and pace.</p>
+
+      <p className="hero-description">
+        Turn your interests into a trip worth taking.
+        Choose a destination, set your pace, and explore your way.
+      </p>
+
+      <div className="hero-tags">
+        <span>1 to 7 days</span>
+        <span>Your interests</span>
+        <span>Your pace</span>
+      </div>
+    </header>
 
       <TripInterpreter
         onApply={applyTripDetails}
@@ -174,10 +188,9 @@ function App() {
         disabled={loading}
       />
 
-      {suggestedDestination && (
-        <p>
-          Suggested destination: <strong>{suggestedDestination}</strong>.
-          Search for it below and select the correct city.
+      {suggestedDestination && !selectedCity && (
+        <p className="hint">
+          Destination filled in. Click Search cities and choose a result.
         </p>
       )}
 
@@ -188,6 +201,7 @@ function App() {
 
           <CitySearch
             key={citySearchKey}
+            initialQuery={suggestedDestination}
             onSelect={(city) => {
               setSelectedCity(city);
               clearResult();
@@ -208,10 +222,7 @@ function App() {
             required
           />
 
-          <p>
-            Plan 1 to 7 days in one destination. Your total budget and food
-            allowance cover the entire trip.
-          </p>
+          <p className="hint">1 to 7 days in one city.</p>
           <label htmlFor="trip-date">Trip date (optional)</label>
           <input
             id="trip-date"
@@ -223,17 +234,12 @@ function App() {
             }}
           />
 
-          <p>
-            Choose the date at your destination. Leave blank to see weather
-            starting today. Forecasts for distant dates may be unavailable.
-          </p>
-          <p>
-            Review the trip date after applying a written request.
-            You can choose or change it here.
+          <p className="hint">
+            Optional. Leave blank for weather starting today.
           </p>
 
           <label>
-            Food and activity budget (USD)
+            Total trip budget (USD)
             <input
               type="number"
               placeholder="100"
@@ -248,7 +254,9 @@ function App() {
             />
           </label>
 
-          <label htmlFor="food-budget">Food allowance (USD)</label>
+          <label htmlFor="food-budget">
+            Food allowance, included in total (USD)
+          </label>
           <input
             id="food-budget"
             type="number"
@@ -262,20 +270,13 @@ function App() {
             placeholder="Example: 30"
           />
 
-          <p>
-            This comes out of your total budget. Leave blank to reserve $0.
-            The remaining amount is your activity allowance.
-          </p>
-
-          <p className="hint">
-            Total for one traveler. Excludes hotels and flights.
-          </p>
+          <p className="hint">Leave blank to reserve $0 for food.</p>
 
           <label>
             Interests
             <input
               type="text"
-              placeholder="museums, history"
+              placeholder="museums, parks, art"
               value={interests}
               onChange={(event) => {
                 setInterests(event.target.value);
@@ -285,8 +286,7 @@ function App() {
             />
           </label>
           <p className="hint">
-            Separate interests with commas. Currently supported: museums,
-            history, nature, architecture.
+            Separate interests with commas, such as museums, parks, or art.
           </p>
 
           <label>
@@ -300,9 +300,9 @@ function App() {
               required
             >
               <option value="">Choose a pace</option>
-              <option value="relaxed">Relaxed — up to 3 stops</option>
-              <option value="balanced">Balanced — up to 4 stops</option>
-              <option value="packed">Packed — up to 5 stops</option>
+              <option value="relaxed">Relaxed, up to 3 stops per day</option>
+              <option value="balanced">Balanced, up to 4 stops per day</option>
+              <option value="packed">Packed, up to 5 stops per day</option>
             </select>
           </label>
 
@@ -321,11 +321,6 @@ function App() {
             </select>
           </label>
 
-          <p className="hint">
-            Variety depends on the places available. High variety prefers
-            different activity types when interest scores are equal.
-          </p>
-
           <label htmlFor="popularity">Place popularity</label>
           
           <select
@@ -340,11 +335,29 @@ function App() {
             <option value="mixed">No popularity preference</option>
             <option value="hidden_gems">Prefer hidden gems</option>
           </select>
+          
+          <details className="planning-notes">
+            <summary>Planning notes</summary>
 
-          <p>
-            Uses available attraction ratings. Hidden gems favors lower ratings,
-            which does not necessarily mean fewer visitors.
-          </p>
+            <ul>
+              <li>
+                Budget amounts are for one traveler across the whole trip.
+                Food is included in the total. Hotels and transportation are excluded.
+              </li>
+              <li>
+                Choose dates in the destination's local time.
+                Weather forecasts may be unavailable for distant dates.
+              </li>
+              <li>
+                Popularity uses attraction ratings. Hidden gems favors
+                lower ratings, which does not guarantee fewer visitors.
+              </li>
+              <li>
+                Variety changes the mix of attraction categories.
+                Results depend on the places available.
+              </li>
+            </ul>
+          </details>
 
           <button type="submit">
             {loading ? "Generating..." : "Generate itinerary"}

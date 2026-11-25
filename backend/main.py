@@ -13,6 +13,7 @@ from schedule import add_schedule
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
 from admission import AdmissionRequest, lookup_admission
+from google_places import search_place_details
 
 # Create the backend app
 app = FastAPI(
@@ -31,6 +32,10 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+
+class PlaceDetailsRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    destination: str = Field(min_length=2, max_length=200)
 
 # Define the trip details the user can send
 class TripRequest(BaseModel):
@@ -372,7 +377,8 @@ def create_itinerary(trip: ItineraryRequest):
         "Opening hours are not checked. Suggested times may fall "
         "outside opening hours.",
 
-        "The total budget and food allowance cover the whole trip. "
+        "The budget and food allowance cover the whole trip. "
+        "Admission lookups provide listed prices, not verified booking costs."
         "Activity costs are unknown, so affordability is not verified.",
 
         "Popularity uses available OpenTripMap ratings, not visitor counts. "
@@ -453,3 +459,19 @@ def create_itinerary(trip: ItineraryRequest):
 @app.post("/attractions/admission")
 def get_admission(request: AdmissionRequest):
     return lookup_admission(request)
+
+# Search for opening hours and business status.
+@app.post("/attractions/place-details")
+def get_attraction_place_details(request: PlaceDetailsRequest):
+    candidates = search_place_details(
+        name=request.name,
+        destination=request.destination,
+    )
+
+    return {
+        "candidates": candidates,
+        "message": (
+            "Check the name and location before using these hours. "
+            "Regular hours may differ on holidays or special dates."
+        ),
+    }

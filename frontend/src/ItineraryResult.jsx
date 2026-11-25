@@ -28,6 +28,73 @@ function ItineraryContent({ itinerary }) {
     return `${day.day}:${stop.place.id}`;
   }
 
+  // Recalculate whenever admission results change.
+const budgetCheck = calculateBudget();
+
+function calculateBudget() {
+  // Add money as whole cents to avoid floating-point addition errors.
+  const totalCents = Math.round(itinerary.budget_usd * 100);
+  const foodCents = Math.round(
+    (itinerary.trip.food_budget ?? 0) * 100
+  );
+
+  let activityCents = 0;
+  let pricedCount = 0;
+  let unknownCount = 0;
+
+  for (const day of dailyPlans) {
+    for (const stop of day.stops) {
+      const admission = admissions[admissionKey(day, stop)];
+      const price = admission?.standard_adult_price_usd;
+
+      // Zero counts as a listed price. Missing prices stay unknown.
+      if (
+        admission?.status === "listed_price" &&
+        typeof price === "number" &&
+        Number.isFinite(price) &&
+        price >= 0
+      ) {
+        activityCents += Math.round(price * 100);
+        pricedCount += 1;
+      } else {
+        unknownCount += 1;
+      }
+    }
+  }
+
+  const accountedCents = foodCents + activityCents;
+  const remainingCents = totalCents - accountedCents;
+
+  let status;
+  let message;
+
+  if (remainingCents < 0) {
+    status = "over_budget";
+    message = "Listed admission prices plus food exceed your budget.";
+  } else if (pricedCount + unknownCount === 0) {
+    status = "incomplete";
+    message = "There are no activities to check.";
+  } else if (unknownCount > 0) {
+    status = "incomplete";
+    message = "Some prices are unknown. The full trip cost is incomplete.";
+  } else {
+    status = "within_listed_budget";
+    message = "Listed admission prices plus food fit your budget.";
+  }
+
+  return {
+    status,
+    message,
+    food_allowance: foodCents / 100,
+    known_activity_total: activityCents / 100,
+    accounted_total: accountedCents / 100,
+    remaining_after_known_costs: remainingCents / 100,
+    priced_activity_count: pricedCount,
+    unknown_activity_count: unknownCount,
+    prices_verified: false,
+  };
+}
+
   async function lookupDayPrices(day) {
     if (activeRequest.current) {
       return;
@@ -154,21 +221,21 @@ function ItineraryContent({ itinerary }) {
     }
 
     // Include the budget calculation in the downloaded file.
-    if (itinerary.budget_check) {
-      const budget = itinerary.budget_check;
+    if (budgetCheck) {
+      const budget = budgetCheck;
 
       lines.push(
         "",
-        "BUDGET CHECK",
+        "BUDGET ESTIMATE",
         budget.message,
         `Food allowance: $${budget.food_allowance.toFixed(2)}`,
-        `Known activity costs: $${budget.known_activity_total.toFixed(2)}`,
+        `Listed admission total: $${budget.known_activity_total.toFixed(2)}`,
         `Amount accounted for: $${budget.accounted_total.toFixed(2)}`
       );
 
       if (budget.remaining_after_known_costs >= 0) {
         lines.push(
-          `Remaining after known costs: $${budget.remaining_after_known_costs.toFixed(2)}`
+          `Remaining before unknown costs and extra fees: $${budget.remaining_after_known_costs.toFixed(2)}`
         );
       } else {
         lines.push(
@@ -251,7 +318,7 @@ function ItineraryContent({ itinerary }) {
             `Retrieved: ${admission.retrieved_at}`,
             "Lookup: Tavily search and Gemini extraction.",
             "Listed price only. Not verified for the visit date.",
-            "This lookup has not been included in the budget calculation."
+            "Listed prices are included in the budget estimate. Unknown prices remain unaccounted for."
           );
         } else {
           lines.push("Admission price has not been looked up.");
@@ -367,90 +434,97 @@ function ItineraryContent({ itinerary }) {
       <p>Budget has not been verified against activity costs.</p>
       {itinerary.budget_breakdown && (
         <div className="budget-details">
-          <h3>Your budget allocation</h3>
+          <h3>Your spending plan</h3>
 
-          <p>
-            Total budget: $
-            {itinerary.budget_breakdown.total_usd.toFixed(2)}
-          </p>
+          <dl className="budget-grid">
+            <div>
+              <dt>Total budget</dt>
+              <dd>
+                ${itinerary.budget_breakdown.total_usd.toFixed(2)}
+              </dd>
+            </div>
 
-          <p>
-            Reserved for food: $
-            {itinerary.budget_breakdown.food_allowance_usd.toFixed(2)}
-          </p>
+            <div>
+              <dt>For food</dt>
+              <dd>
+                ${itinerary.budget_breakdown.food_allowance_usd.toFixed(2)}
+              </dd>
+            </div>
 
-          <p>
-            Available for activities: $
-            {itinerary.budget_breakdown.activity_allowance_usd.toFixed(2)}
-          </p>
+            <div>
+              <dt>For activities</dt>
+              <dd>
+                ${itinerary.budget_breakdown.activity_allowance_usd.toFixed(2)}
+              </dd>
+            </div>
+          </dl>
 
-          <p>
-            These are spending allowances. Attraction prices are unknown,
-            so this does not confirm that the itinerary fits your budget.
+          <p className="hint">
+            Spending allowances only. Actual trip costs are not verified.
           </p>
         </div>
       )}
       <p>Suggested times are in the destination's local time.</p>
 
-      {itinerary.budget_check && (
-        <div className="budget-check">
-          <h3>Budget check</h3>
+      <div className="budget-check" aria-live="polite">
+      <h3>Budget estimate</h3>
+      <p>{budgetCheck.message}</p>
 
-          <p>{itinerary.budget_check.message}</p>
-
-          <p>
-            <strong>Food allowance:</strong>{" "}
-            ${itinerary.budget_check.food_allowance.toFixed(2)}
-          </p>
-
-          <p>
-            <strong>Known activity costs:</strong>{" "}
-            ${itinerary.budget_check.known_activity_total.toFixed(2)}
-          </p>
-
-          <p>
-            <strong>Amount accounted for:</strong>{" "}
-            ${itinerary.budget_check.accounted_total.toFixed(2)}
-          </p>
-
-          {itinerary.budget_check.remaining_after_known_costs >= 0 ? (
-            <p>
-              <strong>Remaining after known costs:</strong>{" "}
-              $
-              {itinerary.budget_check.remaining_after_known_costs.toFixed(2)}
-            </p>
-          ) : (
-            <p>
-              <strong>Over budget by:</strong>{" "}
-              $
-              {Math.abs(
-                itinerary.budget_check.remaining_after_known_costs
-              ).toFixed(2)}
-            </p>
-          )}
-
-          <p>
-            Activities with prices:{" "}
-            {itinerary.budget_check.priced_activity_count}
-            {" · "}
-            Activities with unknown prices:{" "}
-            {itinerary.budget_check.unknown_activity_count}
-          </p>
-
-          {itinerary.budget_check.unknown_activity_count > 0 && (
-            <p>
-              Unknown prices are not treated as free. Any remaining
-              money may still be needed for these activities.
-            </p>
-          )}
-
-          <p>
-            This calculation covers activity admission and your food
-            allowance. It excludes lodging and transportation.
-            Admission prices have not been independently verified.
-          </p>
+      <dl className="budget-grid">
+        <div>
+          <dt>Listed admission total</dt>
+          <dd>${budgetCheck.known_activity_total.toFixed(2)}</dd>
         </div>
+
+        <div>
+          <dt>Including food</dt>
+          <dd>${budgetCheck.accounted_total.toFixed(2)}</dd>
+        </div>
+
+        <div>
+          <dt>
+            {budgetCheck.remaining_after_known_costs >= 0
+              ? "Remaining*"
+              : "Over budget by"}
+          </dt>
+          <dd>
+            $
+            {Math.abs(
+              budgetCheck.remaining_after_known_costs
+            ).toFixed(2)}
+          </dd>
+        </div>
+      </dl>
+
+      <p>
+        {budgetCheck.priced_activity_count} stops with listed prices
+        {" · "}
+        {budgetCheck.unknown_activity_count} with unknown prices
+      </p>
+
+      <p className="hint">
+        Unknown prices are not free. Listed prices are not verified
+        for your visit date and may exclude fees.
+      </p>
+
+      {budgetCheck.remaining_after_known_costs >= 0 && (
+        <p className="hint">
+          *Before unknown activity costs and extra fees.
+        </p>
       )}
+
+      <details className="result-details">
+        <summary>What this estimate includes</summary>
+        <p>
+          Listed adult admission for one traveler at each scheduled
+          stop, plus your food allowance for the whole trip.
+          Hotels and transportation are excluded.
+        </p>
+        <p>
+          Check each attraction's sources and conditions before booking.
+        </p>
+      </details>
+    </div>
 
       {/* Summarize travel between the selected stops. */}
       {itinerary.travel_summary && (
@@ -699,12 +773,20 @@ function ItineraryContent({ itinerary }) {
         </>
       )}
 
-      <h3>Things to know</h3>
-      <ul>
-        {itinerary.warnings.map((warning, index) => (
-          <li key={index}>{warning}</li>
-        ))}
-      </ul>
+      <p className="hint">
+        Draft schedule. Opening hours are not checked.
+        Driving estimates exclude parking and walking.
+      </p>
+
+      <details className="result-details planning-notes">
+        <summary>Things to know</summary>
+
+        <ul>
+          {itinerary.warnings.map((warning, index) => (
+            <li key={index}>{warning}</li>
+          ))}
+        </ul>
+      </details>
 
       <p className="source-note">
         Attractions: {itinerary.sources.attractions}
@@ -731,56 +813,68 @@ function ItineraryContent({ itinerary }) {
 
 function AdmissionInfo({ admission }) {
   if (!admission) {
-    return <p>Admission price has not been looked up.</p>;
+    return <p className="hint">Admission price not looked up yet.</p>;
   }
 
   return (
     <div className="admission-details">
-      <h5>Admission information</h5>
-
       {admission.status === "listed_price" ? (
-        <p>
-          Listed standard adult admission:{" "}
-          <strong>
-            ${admission.standard_adult_price_usd.toFixed(2)} USD
-          </strong>
-        </p>
+        <>
+          <p className="admission-price">
+            <span>Listed adult admission</span>
+            <strong>
+              ${admission.standard_adult_price_usd.toFixed(2)} USD
+            </strong>
+          </p>
+
+          <p className="hint">
+            Not verified for your visit date. Fees may apply.
+          </p>
+        </>
       ) : (
-        <p>Admission price is unknown.</p>
+        <p>
+          <strong>Admission price unknown.</strong> Not assumed free.
+        </p>
       )}
 
-      {admission.source_url &&
-        /^https?:\/\//i.test(admission.source_url) && (
-          <p>
-            <a
-              href={admission.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View price source
-            </a>
-          </p>
+      <details className="result-details">
+        <summary>Sources and conditions</summary>
+
+        {admission.source_url &&
+          /^https?:\/\//i.test(admission.source_url) && (
+            <p>
+              <a
+                href={admission.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View price source
+              </a>
+            </p>
+          )}
+
+        {admission.supporting_quote && (
+          <blockquote>{admission.supporting_quote}</blockquote>
         )}
 
-      {admission.supporting_quote && (
-        <blockquote>{admission.supporting_quote}</blockquote>
-      )}
+        {admission.conditions?.length > 0 && (
+          <ul>
+            {admission.conditions.map((condition, index) => (
+              <li key={index}>{condition}</li>
+            ))}
+          </ul>
+        )}
 
-      <ul>
-        {admission.conditions.map((condition, index) => (
-          <li key={index}>{condition}</li>
-        ))}
-      </ul>
+        <p className="hint">
+          Retrieved: {admission.retrieved_at}
+          {admission.cached ? " (cached result)" : ""}
+        </p>
 
-      <p>
-        Retrieved: {admission.retrieved_at}
-        {admission.cached ? " (cached result)" : ""}
-      </p>
-
-      <p>
-        Found using Tavily and extracted by Gemini. Check the source
-        before booking. This is not a verified price for your visit date.
-      </p>
+        <p className="hint">
+          Found using Tavily and extracted by Gemini.
+          Check the source before booking.
+        </p>
+      </details>
     </div>
   );
 }

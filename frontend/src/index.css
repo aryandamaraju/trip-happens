@@ -2,15 +2,51 @@
   box-sizing: border-box;
 }
 
+:root {
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #243b3a;
+  background: #f4f7f6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #f4f6f8;
-  color: #243244;
+  min-width: 320px;
+  line-height: 1.6;
 }
 
 input,
 select,
+textarea,
 button {
   font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: #096c60;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: #064c44;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #168778;
+  outline-offset: 4px;
+}
+
+::selection {
+  background: #c4e9df;
+  color: #163e35;
 }

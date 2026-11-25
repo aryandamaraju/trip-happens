@@ -1,80 +1,122 @@
+/* Main page */
 .container {
-  max-width: 650px;
-  margin: 40px auto;
-  padding: 24px;
+  width: min(100% - 40px, 880px);
+  margin: 40px auto 72px;
 }
 
-form,
-.preview {
-  padding: 24px;
-  background-color: white;
-  border: 1px solid #d5dce3;
-  border-radius: 10px;
+h1,
+h2,
+h3,
+h4 {
+  color: #173f37;
+  line-height: 1.25;
 }
 
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+h2 {
+  margin: 0 0 12px;
+  font-size: 1.65rem;
 }
 
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-weight: bold;
+h3 {
+  font-size: 1.2rem;
 }
 
-input,
-select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #8996a5;
-  border-radius: 5px;
+p {
+  margin: 0 0 14px;
 }
 
-.hint {
-  margin: -8px 0 0;
-  font-size: 14px;
-  color: #526173;
+p:last-child {
+  margin-bottom: 0;
 }
 
-button {
-  padding: 12px;
-  border: none;
-  border-radius: 5px;
-  background-color: #176b58;
+/* Welcome banner */
+.hero {
+  padding: 40px;
+  margin-bottom: 32px;
+  border-radius: 24px;
+  background: linear-gradient(120deg, #123e35, #1b6b5b);
+  color: #e2f2eb;
+  box-shadow: 0 12px 32px rgb(19 62 53 / 12%);
+}
+
+.hero .eyebrow {
+  margin-bottom: 12px;
+  color: #bce5d3;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0 0 14px;
   color: white;
-  cursor: pointer;
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  letter-spacing: -0.05em;
 }
 
-button:hover {
-  background-color: #105142;
+.hero-description {
+  max-width: 540px;
+  font-size: 1.1rem;
 }
 
-.preview {
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 24px;
 }
 
-[role="alert"] {
-  color: #b42318;
+.hero-tags span {
+  padding: 5px 12px;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 999px;
+  color: #f1faf6;
+  font-size: 0.8rem;
 }
 
-.city-search {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* Main cards */
+.container > form,
+.interpreter,
+.preview {
+  padding: 30px;
+  border: 1px solid #dce6e0;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 5px 20px rgb(30 65 52 / 4%);
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
+.interpreter {
+  margin-bottom: 24px;
+  border-top: 4px solid #63a58e;
 }
 
+.interpreter > p {
+  color: #5c6f68;
+}
+
+.preview {
+  margin-top: 28px;
+}
+
+.preview > h2 {
+  font-size: 1.9rem;
+}
+
+.interpreter .preview {
+  padding: 22px;
+  background: #f5f9f6;
+  box-shadow: none;
+}
+
+form,
 fieldset {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+}
+
+fieldset {
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -82,58 +124,446 @@ fieldset {
 }
 
 legend {
-  margin-bottom: 16px;
-  font-weight: bold;
+  margin-bottom: 22px;
+  padding: 0;
+  color: #173f37;
+  font-size: 1.65rem;
+  font-weight: 700;
 }
 
-.stop-card {
-  margin: 16px 0;
-  padding: 16px;
-  border: 1px solid #d5dce3;
-  border-radius: 8px;
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #2c4840;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
-.stop-card h3 {
-  margin-top: 0;
+fieldset > label {
+  margin-top: 8px;
 }
 
-.preview li {
-  margin-bottom: 8px;
+/* Form controls */
+input,
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #b9cbc2;
+  border-radius: 10px;
+  background: #fcfdfc;
+  color: #243b3a;
 }
 
-.source-note {
-  margin-top: 24px;
-  font-size: 14px;
-  color: #526173;
-}
-
-.interpreter {
-  margin-bottom: 32px;
+input,
+select {
+  min-height: 48px;
 }
 
 textarea {
-  width: 100%;
-  padding: 10px;
-  font: inherit;
-  border: 1px solid #8996a5;
-  border-radius: 5px;
+  min-height: 130px;
+  line-height: 1.6;
   resize: vertical;
 }
 
-.travel-details {
+input::placeholder,
+textarea::placeholder {
+  color: #74877e;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 3px solid #d9eee4;
+  border-color: #237d66;
+  background: white;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: #edf1ee;
+  color: #66776d;
+}
+
+.hint,
+fieldset > p {
+  margin: 0;
+  color: #61736a;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.city-search {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e3ebe5;
+}
+
+/* Buttons */
+button {
+  min-height: 46px;
+  padding: 12px 20px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #176b58;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: #105443;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+fieldset > button[type="submit"] {
   margin-top: 12px;
-  padding: 10px 12px;
-  background-color: #f3f6f8;
-  border-left: 3px solid #627d98;
-  border-radius: 4px;
+  min-height: 52px;
+  font-size: 1rem;
+}
+
+.city-search > button,
+.interpreter form > button,
+.admission-controls button {
+  border-color: #c2dace;
+  background: #eaf4ee;
+  color: #175b48;
+}
+
+.city-search > button:hover:not(:disabled),
+.interpreter form > button:hover:not(:disabled),
+.admission-controls button:hover:not(:disabled) {
+  background: #d9ebe0;
+}
+
+/* Budget panels */
+.budget-details,
+.budget-check {
+  margin: 22px 0;
+  padding: 22px;
+  border-radius: 14px;
+}
+
+.budget-details {
+  border: 1px solid #d1e5d9;
+  background: #f0f7f2;
+}
+
+.budget-check {
+  border: 1px solid #e7ddbd;
+  background: #fffaf0;
+}
+
+.budget-details h3,
+.budget-check h3 {
+  margin-top: 0;
+}
+
+.budget-details p,
+.budget-check p {
+  margin-bottom: 10px;
+}
+
+/* Separate each day's itinerary */
+.day-section {
+  margin-top: 32px;
+  padding-top: 26px;
+  border-top: 2px solid #dce9df;
+}
+
+.day-section > h3 {
+  display: inline-block;
+  margin: 0 0 14px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #e9f3ed;
+  color: #19523e;
+  font-size: 1.15rem;
+}
+
+.admission-controls {
+  margin: 18px 0;
+}
+
+.admission-controls p {
+  margin-top: 10px;
+  color: #61736a;
+  font-size: 0.85rem;
+}
+
+/* Individual attraction cards */
+.stop-card {
+  margin: 20px 0;
+  padding: 24px;
+  border: 1px solid #dce6df;
+  border-left: 4px solid #5c9b80;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.stop-card h3,
+.stop-card h4 {
+  margin: 0 0 16px;
+  color: #1d4e3a;
+  font-size: 1.2rem;
+}
+
+.stop-card > p {
+  color: #52675b;
+}
+
+.travel-details {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid #dae6eb;
+  border-radius: 10px;
+  background: #f1f6f8;
+  color: #3c5965;
+  font-size: 0.9rem;
+}
+
+.travel-details h3 {
+  margin-top: 0;
+  color: #315465;
 }
 
 .travel-details p {
-  margin: 4px 0;
+  margin: 0 0 8px;
 }
 
-.day-section {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 2px solid #d8e2dc;
+.travel-details p:last-child {
+  margin-bottom: 0;
+}
+
+/* Admission prices and supporting sources */
+.admission-details {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #e5e7dc;
+  border-radius: 10px;
+  background: #fafbf6;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.admission-details h4,
+.admission-details h5 {
+  margin: 0 0 12px;
+  color: #42583e;
+  font-size: 1rem;
+}
+
+blockquote {
+  margin: 14px 0;
+  padding: 12px 16px;
+  border-left: 3px solid #a2b89c;
+  background: white;
+  color: #52624d;
+}
+
+.preview ul {
+  padding-left: 22px;
+}
+
+.preview li {
+  margin-bottom: 9px;
+  color: #526459;
+}
+
+.source-note {
+  margin-top: 22px;
+  color: #61736a;
+  font-size: 0.8rem;
+}
+
+/* Feedback */
+[role="alert"] {
+  margin: 18px 0;
+  padding: 14px 18px;
+  border: 1px solid #f1c9c3;
+  border-radius: 10px;
+  background: #fff3f0;
+  color: #9e3326;
+}
+
+[role="status"] {
+  margin: 18px 0;
+  padding: 14px 18px;
+  border: 1px solid #cbe2d5;
+  border-radius: 10px;
+  background: #edf7f0;
+  color: #285b40;
+}
+
+/* Smaller screens */
+@media (max-width: 600px) {
+  .container {
+    width: min(100% - 24px, 880px);
+    margin-top: 16px;
+  }
+
+  .hero {
+    padding: 28px 22px;
+    border-radius: 18px;
+  }
+
+  .container > form,
+  .interpreter,
+  .preview {
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  .stop-card {
+    padding: 18px;
+  }
+
+  .budget-details,
+  .budget-check,
+  .admission-details {
+    padding: 16px;
+  }
+
+  button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}
+
+/* Short, readable help text */
+.hint,
+fieldset > p,
+.interpreter > p {
+  font-size: 0.95rem;
+  color: #465e53;
+}
+
+.planning-notes {
+  margin-top: 8px;
+  padding: 14px 16px;
+  border: 1px solid #dce6df;
+  border-radius: 10px;
+  background: #f6f9f7;
+}
+
+.planning-notes summary {
+  color: #285c48;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.planning-notes summary:focus-visible {
+  outline: 3px solid #168778;
+  outline-offset: 4px;
+}
+
+.planning-notes ul {
+  margin: 14px 0 0;
+  padding-left: 20px;
+}
+
+.planning-notes li {
+  margin-bottom: 10px;
+  color: #465e53;
+  font-size: 0.95rem;
+}
+
+.planning-notes li:last-child {
+  margin-bottom: 0;
+}
+
+/* Budget totals shown together */
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.budget-grid > div {
+  padding: 16px;
+  border: 1px solid #d6e5db;
+  border-radius: 12px;
+  background: white;
+}
+
+.budget-grid dt {
+  color: #52675b;
+  font-size: 0.85rem;
+}
+
+.budget-grid dd {
+  margin: 6px 0 0;
+  color: #173f37;
+  font-size: 1.5rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* Price and expandable supporting information */
+.admission-price {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.admission-price strong {
+  color: #173f37;
+  font-size: 1.2rem;
+}
+
+.result-details {
+  margin-top: 16px;
+}
+
+.result-details summary {
+  padding: 4px 0;
+  color: #285c48;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.result-details summary:focus-visible {
+  outline: 3px solid #168778;
+  outline-offset: 4px;
+}
+
+.result-details[open] summary {
+  margin-bottom: 14px;
+}
+
+@media (max-width: 520px) {
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-grid > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .budget-grid dd {
+    margin: 0;
+    font-size: 1.25rem;
+  }
 }

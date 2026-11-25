@@ -59,10 +59,7 @@ function TripInterpreter({ onApply, onBusyChange, disabled }) {
 
   return (
     <section className="interpreter">
-      <h2>Describe your trip</h2>
-      <p>
-        Use this optional helper, or fill in the trip form yourself.
-      </p>
+      <p>Describe your plans, or use the form below.</p>    
       <p>
         To include a date, write the month, day, and year,
         such as November 25, 2026. Otherwise, choose it in the form.
@@ -78,7 +75,7 @@ function TripInterpreter({ onApply, onBusyChange, disabled }) {
               setResult(null);
               setError("");
             }}
-            placeholder="I want a relaxed one-day trip to Baltimore..."
+            placeholder="One day in Baltimore on November 28, 2026. $100 for food and activities, including $30 for food. Museums and parks, at a relaxed pace."
             rows={4}
             minLength={10}
             maxLength={2000}
