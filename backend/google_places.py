@@ -104,7 +104,7 @@ def search_place_details(name: str, destination: str):
                 "business_status": place.get("businessStatus"),
                 "regular_hours": hours.get("weekdayDescriptions", []),
                 # Keep structured hours for scheduling later.
-                "regular_periods": hours.get("periods", []),
+                "regular_periods": hours.get("periods"),
                 "google_maps_url": place.get("googleMapsUri"),
                 "source": "Google Maps",
                 "match_verified": False,

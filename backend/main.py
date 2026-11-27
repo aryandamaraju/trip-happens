@@ -37,6 +37,58 @@ class PlaceDetailsRequest(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     destination: str = Field(min_length=2, max_length=200)
 
+# Information needed to schedule an existing attraction.
+class SchedulePlace(BaseModel):
+    id: str
+    name: str
+    categories: list[str]
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
+
+    # Preserve other place fields, such as scores and source.
+    model_config = {"extra": "allow"}
+
+
+class ScheduleStop(BaseModel):
+    position: int = Field(ge=1, le=5)
+    place: SchedulePlace
+
+    # Preserve the reason, day number, and other stop information.
+    model_config = {"extra": "allow"}
+
+
+# The Google result the user selected for an attraction.
+class SelectedGooglePlace(BaseModel):
+    google_place_id: str = Field(min_length=1, max_length=300)
+    business_status: str | None = None
+    regular_periods: list[dict] | None = None
+
+
+class RescheduleDayRequest(BaseModel):
+    day: int = Field(ge=1, le=7)
+    visit_date: date | None = None
+    stops: list[ScheduleStop] = Field(default_factory=list, max_length=5)
+
+    # Keys are the original OpenTripMap attraction IDs.
+    confirmed_places: dict[str, SelectedGooglePlace] = Field(
+        default_factory=dict
+    )
+
+    @model_validator(mode="after")
+    def check_selected_places(self):
+        stop_ids = [stop.place.id for stop in self.stops]
+
+        if len(stop_ids) != len(set(stop_ids)):
+            raise ValueError("Each stop must have a different attraction ID.")
+
+        for place_id in self.confirmed_places:
+            if place_id not in stop_ids:
+                raise ValueError(
+                    "A selected Google place does not belong to this day's stops."
+                )
+
+        return self
+
 # Define the trip details the user can send
 class TripRequest(BaseModel):
     destination: str = Field(min_length=2, max_length=100)
@@ -339,10 +391,20 @@ def create_itinerary(trip: ItineraryRequest):
             start_lon=trip.longitude,
         )
 
+        # Keep attraction-selection warnings separate from schedule warnings.
+        daily_plan["planning_warnings"] = daily_plan["warnings"].copy()
+
         # Each call starts a fresh schedule at 09:00.
         schedule = add_schedule(ordered_stops)
+
         daily_plan["stops"] = schedule["stops"]
-        daily_plan["warnings"].extend(schedule["warnings"])
+        daily_plan["meal_breaks"] = schedule["meal_breaks"]
+        daily_plan["schedule_warnings"] = schedule["warnings"]
+
+        daily_plan["warnings"] = (
+            daily_plan["planning_warnings"]
+            + daily_plan["schedule_warnings"]
+        )
 
         daily_plan["travel_summary"] = summarize_travel(
             daily_plan["stops"]
@@ -374,12 +436,13 @@ def create_itinerary(trip: ItineraryRequest):
         "Travel to each day's first stop, from each day's last stop, "
         "and between days is not included.",
 
-        "Opening hours are not checked. Suggested times may fall "
-        "outside opening hours.",
+        "Opening hours affect scheduling only after a Google match is "
+        "selected and the day's times are updated. Holiday hours, "
+        "last admission, and ticket availability are not checked.",
 
         "The budget and food allowance cover the whole trip. "
-        "Admission lookups provide listed prices, not verified booking costs."
-        "Activity costs are unknown, so affordability is not verified.",
+        "Admission lookups provide listed prices, not verified booking costs. "
+        "Unknown prices are excluded from the estimate, not treated as free.",
 
         "Popularity uses available OpenTripMap ratings, not visitor counts. "
         "Hidden gems means lower-rated places, not confirmed undiscovered places.",
@@ -473,5 +536,44 @@ def get_attraction_place_details(request: PlaceDetailsRequest):
         "message": (
             "Check the name and location before using these hours. "
             "Regular hours may differ on holidays or special dates."
+        ),
+    }
+
+# Update one day's times using the user's selected Google matches.
+@app.post("/trips/reschedule-day")
+def reschedule_day(request: RescheduleDayRequest):
+    stops = []
+
+    for position, stop in enumerate(request.stops, start=1):
+        stop_data = stop.model_dump()
+
+        # Keep the submitted order and consistent position numbers.
+        stop_data["position"] = position
+        stop_data["day"] = request.day
+        stops.append(stop_data)
+
+    confirmed_places = {
+        place_id: details.model_dump()
+        for place_id, details in request.confirmed_places.items()
+    }
+
+    schedule = add_schedule(
+        stops=stops,
+        visit_date=request.visit_date,
+        confirmed_places=confirmed_places,
+    )
+
+    return {
+        "day": request.day,
+        "date": request.visit_date,
+        "stops": schedule["stops"],
+        "meal_breaks": schedule["meal_breaks"],
+        "travel_summary": summarize_travel(schedule["stops"]),
+        "warnings": schedule["warnings"],
+        "opening_hours_verified": False,
+        "schedule_basis": (
+            "Uses regular weekly hours for user-selected Google matches. "
+            "Holiday hours, last admission, and ticket availability "
+            "are not checked. Conflicting visits remain tentative."
         ),
     }

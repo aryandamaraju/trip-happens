@@ -567,3 +567,154 @@ fieldset > p,
     font-size: 1.25rem;
   }
 }
+
+.opening-hours {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #d5dce3;
+  border-radius: 8px;
+  background-color: #fafcfb;
+}
+
+.opening-hours h5 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.opening-hours .hint {
+  margin-top: 12px;
+}
+
+.google-attribution {
+  margin-bottom: 0;
+  font-family: Arial, sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px;
+  letter-spacing: normal;
+  white-space: nowrap;
+  color: #5e5e5e;
+}
+
+.schedule-controls {
+  margin: 16px 0;
+}
+
+.schedule-controls .hint {
+  margin-top: 12px;
+}
+
+.schedule-conflict {
+  padding: 12px;
+  color: #8a3410;
+  background-color: #fff4e5;
+  border-left: 3px solid #b45309;
+  border-radius: 4px;
+}
+
+.meal-break {
+  margin: 16px 0;
+  padding: 14px 16px;
+  background-color: #fff8e8;
+  border: 1px solid #e8d6a8;
+  border-radius: 8px;
+}
+
+.meal-break p {
+  margin: 0;
+}
+
+.meal-break .hint {
+  margin-top: 8px;
+}
+
+.remove-stop {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background-color: #fff;
+  color: #a12622;
+  border: 1px solid #d9a4a1;
+}
+
+.remove-stop:hover:not(:disabled) {
+  background-color: #fff0ef;
+}
+
+.day-timeline {
+  margin: 20px 0;
+  padding: 20px;
+  background-color: #f7faf8;
+  border: 1px solid #d8e5df;
+  border-radius: 12px;
+}
+
+.day-timeline h4 {
+  margin: 0 0 8px;
+}
+
+.timeline-list {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0 0 0 16px;
+  border-left: 2px solid #c7d9d0;
+}
+
+.timeline-event {
+  position: relative;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background-color: white;
+  border: 1px solid #dce5df;
+  border-radius: 8px;
+}
+
+.timeline-event:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-event::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: -23px;
+  width: 10px;
+  height: 10px;
+  background-color: #176b58;
+  border: 2px solid #f7faf8;
+  border-radius: 50%;
+}
+
+.timeline-time {
+  margin: 0 0 6px;
+  color: #176b58;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.timeline-title {
+  margin: 0 0 4px;
+  font-weight: bold;
+}
+
+.timeline-note {
+  margin: 0;
+  color: #526173;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.timeline-travel,
+.timeline-waiting {
+  background-color: #edf3f6;
+}
+
+.timeline-meal {
+  background-color: #fff8e8;
+  border-color: #e8d6a8;
+}
+
+@media (max-width: 520px) {
+  .day-timeline {
+    padding: 14px;
+  }
+}

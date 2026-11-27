@@ -1,7 +1,9 @@
 import math
+from datetime import date
 
 from fastapi import HTTPException
 
+from opening_hours import check_visit_time
 from routing import get_route
 
 
@@ -19,11 +21,42 @@ def format_time(minutes: int):
     return formatted
 
 
-def add_schedule(stops: list):
+def add_schedule(
+    stops: list,
+    visit_date: date | None = None,
+    confirmed_places: dict | None = None,
+):
+    if confirmed_places is None:
+        confirmed_places = {}
+
     current_time = 9 * 60
     scheduled_stops = []
     warnings = []
     routing_available = True
+
+    meal_breaks = []
+
+    def add_lunch(start_minutes):
+        end_minutes = start_minutes + 45
+
+        meal_breaks.append({
+            "type": "lunch",
+            "suggested_start": format_time(start_minutes),
+            "suggested_end": format_time(end_minutes),
+            "duration_minutes": 45,
+            "note": (
+                "Suggested meal break. No restaurant is selected. "
+                "Restaurant travel and meal costs are not estimated."
+            ),
+        })
+
+        if start_minutes > 14 * 60:
+            warnings.append(
+                "Lunch falls after 2:00 PM because of the current stop order "
+                "and visit lengths. Consider changing the day's plan."
+            )
+
+        return end_minutes
 
     for index, stop in enumerate(stops):
         categories = stop["place"]["categories"]
@@ -33,6 +66,11 @@ def add_schedule(stops: list):
             visit_minutes = 90
         else:
             visit_minutes = 45
+
+        # Take lunch after a completed visit once it is noon or later.
+        # Add it before travel to the next attraction.
+        if index > 0 and not meal_breaks and current_time >= 12 * 60:
+            current_time = add_lunch(current_time)
 
         travel_before = None
         travel_minutes = 0
@@ -85,7 +123,24 @@ def add_schedule(stops: list):
                 buffer_before = 15
 
         current_time += travel_minutes + buffer_before
+
+        # Use only the Google match selected for this attraction.
+        place_details = confirmed_places.get(str(stop["place"]["id"]))
+
+        hours_check = check_visit_time(
+            arrival_minutes=current_time,
+            visit_minutes=visit_minutes,
+            visit_date=visit_date,
+            place_details=place_details,
+        )
+
+        current_time = hours_check["start_minutes"]
         end_time = current_time + visit_minutes
+
+        if hours_check["status"] == "conflict":
+            warnings.append(
+                f"{stop['place']['name']}: {hours_check['note']}"
+            )
 
         scheduled_stop = stop.copy()
 
@@ -98,18 +153,27 @@ def add_schedule(stops: list):
             "assumed_visit_minutes": visit_minutes,
             "estimated_travel_before_minutes": travel_minutes,
             "assumed_buffer_before_minutes": buffer_before,
+            "waiting_before_minutes": hours_check["waiting_minutes"],
+            "opening_hours_status": hours_check["status"],
+            "opening_hours_note": hours_check["note"],
         }
 
         scheduled_stops.append(scheduled_stop)
         current_time = end_time
+
+    # Short days still get a suggested lunch after their last attraction.
+    if scheduled_stops and not meal_breaks:
+        lunch_start = max(current_time, 12 * 60)
+        current_time = add_lunch(lunch_start)
 
     if current_time >= 24 * 60:
         warnings.append(
             "This draft reaches or passes midnight. "
             "It needs fewer stops or a different route."
         )
-
+        
     return {
         "stops": scheduled_stops,
+        "meal_breaks": meal_breaks,
         "warnings": warnings,
     }

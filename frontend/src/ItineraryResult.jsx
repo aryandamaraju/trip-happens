@@ -1,4 +1,29 @@
 import { useEffect, useRef, useState } from "react";
+import OpeningHours from "./OpeningHours";
+import DayTimeline from "./DayTimeline.jsx";
+
+// Convert kilometers to miles for display.
+function toMiles(kilometers) {
+  return (kilometers * 0.621371).toFixed(2);
+}
+
+// Convert a time like 13:45 into 1:45 PM.
+function to12Hour(time) {
+  if (!time) return "Unavailable";
+
+  // Preserve a day offset, such as "01:30 (+1 day)".
+  const match = time.match(/^(\d{2}):(\d{2})(.*)$/);
+
+  if (!match) return time;
+
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  const extra = match[3];
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours % 12 || 12;
+
+  return `${displayHour}:${minutes} ${period}${extra}`;
+}
 
 // Start fresh when a different itinerary is displayed.
 function ItineraryResult({ itinerary }) {
@@ -10,8 +35,15 @@ function ItineraryResult({ itinerary }) {
   );
 }
 
-function ItineraryContent({ itinerary }) {
+function ItineraryContent({ itinerary: originalItinerary }) {
+  const [itinerary, setItinerary] = useState(originalItinerary);
   const dailyPlans = itinerary.daily_plans ?? [];
+
+  const [confirmedPlaces, setConfirmedPlaces] = useState({});
+  const [pendingDays, setPendingDays] = useState({});
+  const [updatingDay, setUpdatingDay] = useState(null);
+  const [scheduleError, setScheduleError] = useState("");
+  const scheduleRequest = useRef(null);
   const [admissions, setAdmissions] = useState({});
   const [loadingDay, setLoadingDay] = useState(null);
   const [priceError, setPriceError] = useState("");
@@ -21,6 +53,7 @@ function ItineraryContent({ itinerary }) {
     return () => {
       // Stop requesting more attractions if this result is removed.
       activeRequest.current?.abort();
+      scheduleRequest.current?.abort();
     };
   }, []);
 
@@ -29,7 +62,216 @@ function ItineraryContent({ itinerary }) {
   }
 
   // Recalculate whenever admission results change.
-const budgetCheck = calculateBudget();
+  const budgetCheck = calculateBudget();
+
+  // Remember the Google match selected for one stop.
+  function selectOpeningHours(day, stop, selectedPlace) {
+    if (scheduleRequest.current) return;
+
+    const key = admissionKey(day, stop);
+
+    setConfirmedPlaces((previous) => ({
+      ...previous,
+      [key]: selectedPlace,
+    }));
+
+    setPendingDays((previous) => ({
+      ...previous,
+      [day.day]: true,
+    }));
+
+    setScheduleError("");
+  }
+
+
+  // Add the daily travel summaries together after rescheduling.
+  function combineTravel(dailyPlans) {
+    const summary = {
+      mode: "driving",
+      estimated_journeys: 0,
+      fallback_journeys: 0,
+      estimated_driving_minutes: 0,
+      estimated_distance_km: 0,
+      fallback_buffer_minutes: 0,
+    };
+
+    const fields = [
+      "estimated_journeys",
+      "fallback_journeys",
+      "estimated_driving_minutes",
+      "estimated_distance_km",
+      "fallback_buffer_minutes",
+    ];
+
+    for (const day of dailyPlans) {
+      for (const field of fields) {
+        summary[field] += day.travel_summary?.[field] ?? 0;
+      }
+    }
+
+    summary.estimated_distance_km = Number(
+      summary.estimated_distance_km.toFixed(2)
+    );
+
+    return summary;
+  }
+
+  function removeStop(day, stopToRemove) {
+    if (scheduleRequest.current || activeRequest.current) return;
+
+    const remainingStops = day.stops.filter(
+      (stop) => stop.place.id !== stopToRemove.place.id
+    );
+
+    updateDaySchedule(day, remainingStops);
+  }
+
+  async function updateDaySchedule(day, stopsToSchedule = day.stops) {
+    if (scheduleRequest.current || activeRequest.current) return;
+
+    const selectedPlaces = {};
+
+    for (const stop of stopsToSchedule) {
+      const selected = confirmedPlaces[admissionKey(day, stop)];
+
+      if (selected) {
+        selectedPlaces[stop.place.id] = {
+          google_place_id: selected.google_place_id,
+          business_status: selected.business_status,
+          regular_periods: selected.regular_periods,
+        };
+      }
+    }
+
+    const controller = new AbortController();
+    scheduleRequest.current = controller;
+
+    setUpdatingDay(day.day);
+    setScheduleError("");
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/trips/reschedule-day",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            day: day.day,
+            visit_date: day.date ?? null,
+            stops: stopsToSchedule,
+            confirmed_places: selectedPlaces,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data.detail === "string"
+            ? data.detail
+            : "Could not update this day's schedule."
+        );
+      }
+
+      if (
+        data.day !== day.day ||
+        !Array.isArray(data.stops) ||
+        !Array.isArray(data.warnings) ||
+        !data.travel_summary ||
+        data.stops.length !== stopsToSchedule.length ||
+        data.stops.some(
+          (stop, index) =>
+            stop.place?.id !== stopsToSchedule[index].place.id
+        )
+      ) {
+        throw new Error("The updated schedule response was incomplete.");
+      }
+
+      setItinerary((previous) => {
+        // Identify the old daily warnings in the combined warning list.
+        const oldDailyWarnings = new Set();
+
+        for (const existingDay of previous.daily_plans) {
+          for (const warning of existingDay.warnings ?? []) {
+            oldDailyWarnings.add(`Day ${existingDay.day}: ${warning}`);
+          }
+        }
+
+        const updatedDays = previous.daily_plans.map((existingDay) => {
+          if (existingDay.day !== day.day) return existingDay;
+
+          // An empty day no longer needs attraction-selection warnings.
+          const planningWarnings =
+            data.stops.length > 0
+              ? existingDay.planning_warnings ?? []
+              : [];
+
+          return {
+            ...existingDay,
+            stops: data.stops,
+            selected_stop_count: data.stops.length,
+            meal_breaks: data.meal_breaks ?? [],
+            travel_summary: data.travel_summary,
+            planning_warnings: planningWarnings,
+            schedule_warnings: data.warnings,
+            warnings: [...planningWarnings, ...data.warnings],
+            schedule_basis: data.schedule_basis,
+          };
+        });
+
+        const allStops = updatedDays.flatMap(
+          (updatedDay) => updatedDay.stops
+        );
+
+        // Keep general trip notes, then add the current daily warnings.
+        const updatedWarnings = previous.warnings.filter(
+          (warning) => !oldDailyWarnings.has(warning)
+        );
+
+        for (const updatedDay of updatedDays) {
+          for (const warning of updatedDay.warnings ?? []) {
+            updatedWarnings.push(`Day ${updatedDay.day}: ${warning}`);
+          }
+        }
+
+        return {
+          ...previous,
+          daily_plans: updatedDays,
+          stops: allStops,
+          selected_stop_count: allStops.length,
+          travel_summary: combineTravel(updatedDays),
+          warnings: [...new Set(updatedWarnings)],
+          sources: {
+            ...previous.sources,
+            routing: allStops.some((stop) => stop.travel_before != null)
+              ? "OSRM / OpenStreetMap contributors"
+              : null,
+          },
+        };
+      });
+
+      setPendingDays((previous) => ({
+        ...previous,
+        [day.day]: false,
+      }));
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        setScheduleError(
+          error.message || "Could not update the schedule."
+        );
+      }
+    } finally {
+      scheduleRequest.current = null;
+
+      if (!controller.signal.aborted) {
+        setUpdatingDay(null);
+      }
+    }
+  }
 
 function calculateBudget() {
   // Add money as whole cents to avoid floating-point addition errors.
@@ -96,7 +338,7 @@ function calculateBudget() {
 }
 
   async function lookupDayPrices(day) {
-    if (activeRequest.current) {
+    if (activeRequest.current || scheduleRequest.current) {
       return;
     }
 
@@ -177,7 +419,7 @@ function calculateBudget() {
           [key]: data,
         }));
       }
-    } catch (error) {
+    } catch (error) { 
       if (error.name !== "AbortError") {
         setPriceError(
           `${error.message} Further lookups stopped. Completed results are kept.`
@@ -272,9 +514,19 @@ function calculateBudget() {
         ""
       );
 
+      // Include lunch in the downloaded file.
+      for (const meal of day.meal_breaks ?? []) {
+        lines.push(
+          `Lunch break: ${to12Hour(meal.suggested_start)} to ${to12Hour(meal.suggested_end)}`,
+          `Duration: ${meal.duration_minutes} minutes`,
+          meal.note,
+          ""
+        );
+      }
+
       if (day.stops.length === 0) {
         lines.push(
-          "No additional matching attractions available in the retrieved results.",
+          "No stops are currently planned for this day.",
           ""
         );
       }
@@ -284,12 +536,19 @@ function calculateBudget() {
 
         if (stop.schedule) {
           lines.push(
-            `Time: ${stop.schedule.suggested_start} to ${stop.schedule.suggested_end}`,
+            `Time: ${to12Hour(stop.schedule.suggested_start)} to ${to12Hour(stop.schedule.suggested_end)}`,
             `Assumed visit: ${stop.schedule.assumed_visit_minutes} minutes`
           );
         }
 
         lines.push(`Reason: ${stop.reason}`);
+
+        if (stop.schedule?.opening_hours_note) {
+          lines.push(
+            `Opening hours check: ${stop.schedule.opening_hours_note}`,
+            `Waiting before visit: ${stop.schedule.waiting_before_minutes ?? 0} minutes`
+          );
+        }
 
         const admission = admissions[admissionKey(day, stop)];
 
@@ -329,7 +588,7 @@ function calculateBudget() {
         } else if (stop.travel_before) {
           lines.push(
             `Estimated drive from previous stop: ${stop.travel_before.scheduled_minutes} minutes`,
-            `Driving distance: ${stop.travel_before.distance_km} km`
+            `Driving distance: ${toMiles(stop.travel_before.distance_km)} miles`
           );
         } else {
           const buffer =
@@ -422,9 +681,16 @@ function calculateBudget() {
   return (
     <section className="preview">
       <h2>Your draft itinerary</h2>
-      <button type="button" onClick={downloadItinerary}>
+      <button
+        type="button"
+        onClick={downloadItinerary}
+        disabled={
+          updatingDay !== null ||
+          Object.values(pendingDays).some(Boolean)
+        }
+      >
         Download itinerary
-      </button>      
+      </button>   
       <p>{itinerary.trip.destination}</p>
       <p>
         {itinerary.trip.days} day(s) ·{" "}
@@ -540,8 +806,8 @@ function calculateBudget() {
                   Available driving estimates:{" "}
                   {itinerary.travel_summary.estimated_driving_minutes}
                   {" minutes · "}
-                  {itinerary.travel_summary.estimated_distance_km}
-                  {" km across "}
+                  {toMiles(itinerary.travel_summary.estimated_distance_km)}
+                  {" miles across "}
                   {itinerary.travel_summary.estimated_journeys}
                   {" journey(s)."}
                 </p>
@@ -567,7 +833,7 @@ function calculateBudget() {
       )}
 
       {itinerary.stops.length === 0 && (
-        <p>No stops were found. Try another destination.</p>
+        <p>No stops are currently included in this itinerary.</p>
       )}
 
       {loadingDay !== null && (
@@ -578,6 +844,12 @@ function calculateBudget() {
       )}
 
       {priceError && <p role="alert">{priceError}</p>}
+      {scheduleError && <p role="alert">{scheduleError}</p>}
+      {updatingDay !== null && (
+        <p role="status">
+          Recalculating Day {updatingDay}...
+        </p>
+      )}
 
       {dailyPlans.map((day) => (
         <section className="day-section" key={day.day}>
@@ -590,6 +862,60 @@ function calculateBudget() {
             {day.selected_stop_count} of {day.target_stop_count} target stops
           </p>
 
+          {pendingDays[day.day] && (
+            <p role="status">
+              This timeline still uses the previous schedule.
+              Update this day's times to apply your opening hours selections.
+            </p>
+          )}
+
+          <DayTimeline day={day} />
+
+          {day.stops.length > 0 && (
+            <div className="schedule-controls">
+              <button
+                type="button"
+                onClick={() => updateDaySchedule(day)}
+                disabled={
+                  updatingDay !== null ||
+                  loadingDay !== null ||
+                  !day.date ||
+                  !pendingDays[day.day]
+                }
+              >
+                {updatingDay === day.day
+                  ? "Updating times..."
+                  : "Update this day's times"}
+              </button>
+
+              {!day.date ? (
+                <p className="hint">
+                  Choose a trip date and generate a new itinerary to check hours.
+                </p>
+              ) : pendingDays[day.day] ? (
+                <p role="status">
+                  Opening hours selections changed. Update this day's times
+                  to apply them. Displayed times still reflect the previous schedule.
+                </p>
+              ) : (
+                <p className="hint">
+                  Select a Google match under an attraction to adjust its time.
+                </p>
+              )}
+
+              {day.schedule_warnings?.length > 0 && (
+                <div role="status">
+                  <p><strong>Schedule needs review</strong></p>
+                  <ul>
+                    {day.schedule_warnings.map((warning, index) => (
+                      <li key={index}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {day.stops.length > 0 && (
             <div className="admission-controls">
               <button
@@ -597,6 +923,7 @@ function calculateBudget() {
                 onClick={() => lookupDayPrices(day)}
                 disabled={
                   loadingDay !== null ||
+                  updatingDay !== null ||
                   day.stops.slice(0, 5).every(
                     (stop) => admissions[admissionKey(day, stop)]
                   )
@@ -616,9 +943,7 @@ function calculateBudget() {
 
           {day.stops.length === 0 && (
             <p>
-              No additional matching attractions were available in the retrieved
-              results for this day. Try fewer days, different interests, or another
-              destination.
+              <p>No stops are currently planned for this day.</p>
             </p>
           )}
 
@@ -628,7 +953,7 @@ function calculateBudget() {
                 Available driving estimates:{" "}
                 {day.travel_summary.estimated_driving_minutes} minutes
                 {" · "}
-                {day.travel_summary.estimated_distance_km} km
+                {toMiles(day.travel_summary.estimated_distance_km)} miles
               </p>
 
               {day.travel_summary.fallback_journeys > 0 && (
@@ -673,19 +998,28 @@ function calculateBudget() {
               )}
             </div>
           )}
-
+          {day.stops.length > 0 && <h4>Attraction details</h4>}
           {day.stops.map((stop) => (
             <article className="stop-card" key={stop.place.id}>
               <h4>
                 {stop.position}. {stop.place.name}
               </h4>
 
+              <button
+                type="button"
+                className="remove-stop"
+                onClick={() => removeStop(day, stop)}
+                disabled={updatingDay !== null || loadingDay !== null}
+              >
+                Remove stop
+              </button>
+
               {stop.schedule && (
                 <>
                   <p>
                     <strong>
-                      {stop.schedule.suggested_start} to{" "}
-                      {stop.schedule.suggested_end}
+                      {to12Hour(stop.schedule.suggested_start)} to{" "}
+                      {to12Hour(stop.schedule.suggested_end)}
                     </strong>
                   </p>
 
@@ -696,10 +1030,40 @@ function calculateBudget() {
                 </>
               )}
 
+              {stop.schedule?.waiting_before_minutes > 0 && (
+                <p>
+                  Waiting for opening:{" "}
+                  {stop.schedule.waiting_before_minutes} minutes
+                </p>
+              )}
+
+              {stop.schedule?.opening_hours_note && (
+                <p
+                  className={
+                    stop.schedule.opening_hours_status === "conflict"
+                      ? "schedule-conflict"
+                      : "hint"
+                  }
+                >
+                  {stop.schedule.opening_hours_status === "conflict" && (
+                    <strong>Time needs review: </strong>
+                  )}
+                  {stop.schedule.opening_hours_note}
+                </p>
+              )}
               <p>{stop.reason}</p>
 
               <AdmissionInfo
                 admission={admissions[admissionKey(day, stop)]}
+              />
+
+              <OpeningHours
+                place={stop.place}
+                destination={itinerary.trip.destination}
+                disabled={updatingDay !== null}
+                onSelect={(selectedPlace) =>
+                  selectOpeningHours(day, stop, selectedPlace)
+                }
               />
 
               {stop.position === 1 ? (
@@ -713,7 +1077,7 @@ function calculateBudget() {
                     Drive from previous stop:{" "}
                     {stop.travel_before.scheduled_minutes} minutes
                     {" · "}
-                    {stop.travel_before.distance_km} km
+                    {toMiles(stop.travel_before.distance_km)} miles
                   </p>
 
                   <p>
@@ -774,7 +1138,8 @@ function calculateBudget() {
       )}
 
       <p className="hint">
-        Draft schedule. Opening hours are not checked.
+        Draft schedule. Only selected Google matches are checked against
+        regular weekly hours. Review any time conflicts.
         Driving estimates exclude parking and walking.
       </p>
 
